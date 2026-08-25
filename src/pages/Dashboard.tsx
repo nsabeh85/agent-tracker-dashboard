@@ -16,7 +16,7 @@ import {
 import type { AgentPriority, AgentWithStages, Stage } from '../types/database'
 
 type SortKey = 'target' | 'priority' | 'updated'
-type StatusFilter = 'active' | 'all'
+type StatusFilter = 'all' | 'pending_approval' | 'active'
 
 const PRIORITY_RANK: Record<AgentPriority, number> = { high: 0, medium: 1, low: 2 }
 
@@ -70,7 +70,7 @@ export function DashboardPage() {
   const [stageId, setStageId] = useState('')
   const [owner, setOwner] = useState('')
   const [department, setDepartment] = useState('')
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('active')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [sort, setSort] = useState<SortKey>('target')
 
   const owners = useMemo(
@@ -85,7 +85,7 @@ export function DashboardPage() {
   const visible = useMemo(() => {
     return agents
       .filter((agent) => {
-        if (statusFilter === 'active' && agent.status !== 'active') return false
+        if (statusFilter !== 'all' && agent.status !== statusFilter) return false
         if (stageId && agent.current_stage_id !== stageId) return false
         if (owner && agent.assigned_to !== owner) return false
         if (department && agent.requester_department !== department) return false
@@ -128,8 +128,9 @@ export function DashboardPage() {
           value={statusFilter}
           onChange={(value) => setStatusFilter(value as StatusFilter)}
         >
-          <option value="active">Active only</option>
           <option value="all">All statuses</option>
+          <option value="pending_approval">Pending approval</option>
+          <option value="active">Active only</option>
         </Select>
         <Select label="Sort" value={sort} onChange={(value) => setSort(value as SortKey)}>
           <option value="target">Target date</option>
@@ -224,7 +225,13 @@ function AgentListItem({
                 {agent.requester_department}
               </span>
               {agent.status !== 'active' ? (
-                <span className="bg-ink-800 dark:bg-ink-700 rounded-full px-2 py-0.5 font-semibold text-white">
+                <span
+                  className={
+                    agent.status === 'pending_approval'
+                      ? 'rounded-full bg-amber-500 px-2 py-0.5 font-semibold text-white'
+                      : 'bg-ink-800 dark:bg-ink-700 rounded-full px-2 py-0.5 font-semibold text-white'
+                  }
+                >
                   {statusLabel(agent.status)}
                 </span>
               ) : null}

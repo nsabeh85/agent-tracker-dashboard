@@ -9,7 +9,7 @@ Vite, React, TypeScript, Tailwind CSS, and Supabase (Postgres, Auth, RLS, Realti
 ## 1. Create the Supabase project
 
 1. Create a project in the [Supabase dashboard](https://supabase.com/dashboard).
-2. Apply migrations from `supabase/migrations` with the CLI (`supabase link` then `supabase db push`) or paste them in order into the SQL editor.
+2. Apply migrations from `supabase/migrations` with the CLI (`supabase link` then `supabase db push`) or paste them in order into the SQL editor. Later files add a **Pending approval** status and load the current PCT AI Request backlog (40 rows). The backlog seed is idempotent.
 3. Enable Email / magic link in **Authentication → Providers**.
 4. Set **Authentication → URL configuration** Site URL to your deployed origin. Add `http://localhost:5173` to Redirect URLs for local work.
 5. Seed the admin allowlist. Edit `supabase/seed_admins.sql` with the real emails, then run it in the SQL editor (migrations cannot guess those addresses).

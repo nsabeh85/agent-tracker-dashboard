@@ -25,7 +25,10 @@ export function ProgressBar({
   const currentOrder = current?.sort_order ?? 0
   const finished = agentStatus === 'complete'
   const currentIndex = ordered.findIndex((s) => s.id === currentStageId)
-  const stalled = agentStatus === 'on_hold' || agentStatus === 'cancelled'
+  const stalled =
+    agentStatus === 'on_hold' ||
+    agentStatus === 'cancelled' ||
+    agentStatus === 'pending_approval'
 
   const large = size === 'lg'
   const nodeSize = large ? 'h-11 w-11' : 'h-7 w-7'

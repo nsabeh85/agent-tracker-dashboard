@@ -113,6 +113,9 @@ describe('agent schedule flags', () => {
     expect(isInFlight({ status: 'active', current_stage_id: 's3' }, stages)).toBe(true)
     expect(isInFlight({ status: 'active', current_stage_id: 's5' }, stages)).toBe(false)
     expect(isInFlight({ status: 'on_hold', current_stage_id: 's3' }, stages)).toBe(false)
+    expect(isInFlight({ status: 'pending_approval', current_stage_id: 's1' }, stages)).toBe(
+      false,
+    )
   })
 
   it('detects requests created this month', () => {

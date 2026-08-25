@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ProgressBar } from '../components/ProgressBar'
 import { ScheduleMarker } from '../components/ScheduleMarker'
 import { CheckIcon } from '../components/StageIcon'
@@ -23,6 +23,7 @@ import {
 import { supabase } from '../lib/supabase'
 import type {
   Agent,
+  AgentPriority,
   AgentStage,
   AgentStatus,
   AgentSubstep,
@@ -451,6 +452,9 @@ function AdminControls({
   rows: Array<AgentStage & { stage: Stage }>
   onSaved: () => Promise<void>
 }) {
+  const navigate = useNavigate()
+  const [editing, setEditing] = useState(false)
+  const [busy, setBusy] = useState(false)
   const index = rows.findIndex((r) => r.stage_id === agent.current_stage_id)
 
   async function setCurrent(nextIndex: number) {
@@ -485,43 +489,202 @@ function AdminControls({
   }
 
   async function setStatus(status: AgentStatus) {
+    if (status === 'active' && agent.status === 'pending_approval') {
+      const first = rows[0]
+      if (first && first.status === 'not_started') {
+        const { error: stageError } = await supabase
+          .from('agent_stages')
+          .update({ status: 'in_progress', actual_start: first.actual_start ?? todayISO() })
+          .eq('id', first.id)
+        if (stageError) {
+          window.alert(stageError.message)
+          return
+        }
+      }
+    }
     const { error } = await supabase.from('agents').update({ status }).eq('id', agent.id)
     if (error) window.alert(error.message)
     else await onSaved()
   }
 
+  async function saveDetails(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    const goLive = String(form.get('target_go_live') ?? '')
+    setBusy(true)
+    const { error } = await supabase
+      .from('agents')
+      .update({
+        title: String(form.get('title') ?? '').trim(),
+        requester_name: String(form.get('requester_name') ?? '').trim(),
+        requester_department: String(form.get('requester_department') ?? '').trim(),
+        description: String(form.get('description') ?? '').trim(),
+        priority: String(form.get('priority') ?? 'medium') as AgentPriority,
+        assigned_to: String(form.get('assigned_to') ?? '').trim(),
+        target_go_live: goLive || null,
+      })
+      .eq('id', agent.id)
+    setBusy(false)
+    if (error) window.alert(error.message)
+    else {
+      setEditing(false)
+      await onSaved()
+    }
+  }
+
+  async function deleteAgent() {
+    const confirmed = window.confirm(
+      `Delete “${agent.title}”? Its stages, sub-steps, and comments go with it and cannot be recovered.`,
+    )
+    if (!confirmed) return
+    setBusy(true)
+    const { error } = await supabase.from('agents').delete().eq('id', agent.id)
+    setBusy(false)
+    if (error) window.alert(error.message)
+    else navigate('/')
+  }
+
   return (
-    <div className="border-brand-200 bg-brand-50/60 dark:border-brand-500/30 dark:bg-brand-500/10 flex flex-wrap items-center gap-2 rounded-2xl border border-dashed p-3">
-      <span className="text-brand-700 dark:text-brand-300 mr-1 text-xs font-bold tracking-[0.12em] uppercase">
-        Admin
-      </span>
-      <button
-        type="button"
-        className="border-ink-200 text-ink-700 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-200 rounded-full border bg-white px-3.5 py-1.5 text-sm font-semibold transition hover:-translate-y-0.5 disabled:opacity-40 disabled:hover:translate-y-0"
-        disabled={index <= 0}
-        onClick={() => void setCurrent(index - 1)}
-      >
-        Roll back
-      </button>
-      <button
-        type="button"
-        className="bg-brand-600 shadow-brand-600/25 hover:bg-brand-700 rounded-full px-3.5 py-1.5 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-0.5 disabled:opacity-40 disabled:hover:translate-y-0"
-        disabled={index < 0 || index >= rows.length - 1}
-        onClick={() => void setCurrent(index + 1)}
-      >
-        Advance stage
-      </button>
-      <select
-        className="border-ink-200 text-ink-700 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-200 ml-auto rounded-full border bg-white px-3 py-1.5 text-sm font-medium"
-        value={agent.status}
-        onChange={(e) => void setStatus(e.target.value as AgentStatus)}
-      >
-        <option value="active">Active</option>
-        <option value="on_hold">On hold</option>
-        <option value="cancelled">Cancelled</option>
-        <option value="complete">Complete</option>
-      </select>
+    <div className="border-brand-200 bg-brand-50/60 dark:border-brand-500/30 dark:bg-brand-500/10 space-y-3 rounded-2xl border border-dashed p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-brand-700 dark:text-brand-300 mr-1 text-xs font-bold tracking-[0.12em] uppercase">
+          Admin
+        </span>
+        <button
+          type="button"
+          className="border-ink-200 text-ink-700 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-200 rounded-full border bg-white px-3.5 py-1.5 text-sm font-semibold transition hover:-translate-y-0.5 disabled:opacity-40 disabled:hover:translate-y-0"
+          disabled={index <= 0}
+          onClick={() => void setCurrent(index - 1)}
+        >
+          Roll back
+        </button>
+        <button
+          type="button"
+          className="bg-brand-600 shadow-brand-600/25 hover:bg-brand-700 rounded-full px-3.5 py-1.5 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-0.5 disabled:opacity-40 disabled:hover:translate-y-0"
+          disabled={index < 0 || index >= rows.length - 1}
+          onClick={() => void setCurrent(index + 1)}
+        >
+          Advance stage
+        </button>
+        <button
+          type="button"
+          aria-expanded={editing}
+          className="border-ink-200 text-ink-700 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-200 rounded-full border bg-white px-3.5 py-1.5 text-sm font-semibold transition hover:-translate-y-0.5"
+          onClick={() => setEditing((open) => !open)}
+        >
+          {editing ? 'Close editor' : 'Edit details'}
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          className="rounded-full border border-red-200 bg-white px-3.5 py-1.5 text-sm font-semibold text-red-600 transition hover:-translate-y-0.5 disabled:opacity-40 disabled:hover:translate-y-0 dark:border-red-500/40 dark:bg-ink-900 dark:text-red-400"
+          onClick={() => void deleteAgent()}
+        >
+          Delete
+        </button>
+        <select
+          className="border-ink-200 text-ink-700 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-200 ml-auto rounded-full border bg-white px-3 py-1.5 text-sm font-medium"
+          value={agent.status}
+          onChange={(e) => void setStatus(e.target.value as AgentStatus)}
+        >
+          <option value="pending_approval">Pending approval</option>
+          <option value="active">Active</option>
+          <option value="on_hold">On hold</option>
+          <option value="cancelled">Cancelled</option>
+          <option value="complete">Complete</option>
+        </select>
+      </div>
+
+      {editing ? (
+        <form
+          onSubmit={(e) => void saveDetails(e)}
+          className="border-ink-200/80 dark:border-ink-800 dark:bg-ink-900 grid gap-3 rounded-xl border bg-white p-4 sm:grid-cols-2"
+        >
+          <EditField label="Title" name="title" defaultValue={agent.title} required />
+          <EditField
+            label="Requester"
+            name="requester_name"
+            defaultValue={agent.requester_name}
+            required
+          />
+          <EditField
+            label="Department"
+            name="requester_department"
+            defaultValue={agent.requester_department}
+            required
+          />
+          <EditField label="Owner" name="assigned_to" defaultValue={agent.assigned_to} required />
+          <Field label="Priority">
+            <select
+              name="priority"
+              defaultValue={agent.priority}
+              className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
+            >
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+          </Field>
+          <Field label="Target go live">
+            <input
+              type="date"
+              name="target_go_live"
+              defaultValue={agent.target_go_live ?? ''}
+              className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
+            />
+          </Field>
+          <div className="sm:col-span-2">
+            <Field label="Description">
+              <textarea
+                name="description"
+                rows={3}
+                defaultValue={agent.description}
+                className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-100 w-full resize-y rounded-lg border px-2 py-1.5 outline-none"
+              />
+            </Field>
+          </div>
+          <div className="flex items-center gap-2 sm:col-span-2">
+            <button
+              type="submit"
+              disabled={busy}
+              className="bg-ink-900 hover:bg-ink-800 dark:bg-brand-600 dark:hover:bg-brand-500 rounded-full px-4 py-1.5 text-sm font-semibold text-white transition disabled:opacity-40"
+            >
+              {busy ? 'Saving…' : 'Save details'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              className="text-ink-500 dark:text-ink-400 px-2 py-1.5 text-sm font-medium"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      ) : null}
     </div>
+  )
+}
+
+function EditField({
+  label,
+  name,
+  defaultValue,
+  required,
+}: {
+  label: string
+  name: string
+  defaultValue: string
+  required?: boolean
+}) {
+  return (
+    <Field label={label}>
+      <input
+        name={name}
+        defaultValue={defaultValue}
+        required={required}
+        className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
+      />
+    </Field>
   )
 }
 

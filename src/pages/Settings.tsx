@@ -185,7 +185,14 @@ export function SettingsPage() {
           All agents
         </Link>
       </p>
-      <h2 className="text-2xl font-semibold tracking-tight text-ink-900 dark:text-ink-50">Catalog settings</h2>
+      <div>
+        <h2 className="text-2xl font-semibold tracking-tight text-ink-900 dark:text-ink-50">
+          Admin settings
+        </h2>
+        <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">
+          Manage workflow settings and choose who can edit the tracker.
+        </p>
+      </div>
       {error ? <p className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}
 
       <section className="space-y-4">
@@ -293,8 +300,11 @@ export function SettingsPage() {
 
       <section className="space-y-4">
         <h3 className="text-sm font-semibold tracking-wide text-ink-400 uppercase">
-          Admin allowlist
+          People who can edit
         </h3>
+        <p className="text-sm text-ink-500 dark:text-ink-400">
+          Everyone else can view the dashboard but cannot make changes.
+        </p>
         <ul className="divide-y divide-ink-100 dark:divide-ink-800 rounded-2xl border border-ink-200 dark:border-ink-800 bg-white dark:bg-ink-900">
           {admins.map((row) => (
             <li key={row.email} className="flex items-center justify-between px-4 py-3 text-sm">

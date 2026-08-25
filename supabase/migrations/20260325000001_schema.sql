@@ -3,7 +3,7 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 CREATE TYPE public.agent_priority AS ENUM ('low', 'medium', 'high');
-CREATE TYPE public.agent_status AS ENUM ('active', 'on_hold', 'cancelled', 'complete');
+CREATE TYPE public.agent_status AS ENUM ('pending_approval', 'active', 'on_hold', 'cancelled', 'complete');
 CREATE TYPE public.progress_status AS ENUM ('not_started', 'in_progress', 'complete', 'blocked');
 
 CREATE TABLE public.stages (
@@ -37,7 +37,7 @@ CREATE TABLE public.agents (
   current_stage_id uuid NOT NULL REFERENCES public.stages (id),
   target_go_live date NULL,
   assigned_to text NOT NULL,
-  status public.agent_status NOT NULL DEFAULT 'active',
+  status public.agent_status NOT NULL DEFAULT 'pending_approval',
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -146,7 +146,7 @@ BEGIN
     v_first_stage_id,
     p_target_go_live,
     p_assigned_to,
-    'active'
+    'pending_approval'
   )
   RETURNING id INTO v_agent_id;
 
@@ -163,8 +163,8 @@ BEGIN
       v_agent_id,
       v_stage.id,
       v_stage.default_duration_days,
-      CASE WHEN v_stage.id = v_first_stage_id THEN CURRENT_DATE ELSE NULL END,
-      CASE WHEN v_stage.id = v_first_stage_id THEN 'in_progress'::public.progress_status ELSE 'not_started'::public.progress_status END
+      NULL,
+      'not_started'
     )
     RETURNING id INTO v_agent_stage_id;
 

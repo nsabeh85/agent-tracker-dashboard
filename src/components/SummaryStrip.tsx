@@ -47,6 +47,7 @@ function Tile({
 }
 
 export function SummaryStrip({ agents, stages }: Props) {
+  const pending = agents.filter((a) => a.status === 'pending_approval').length
   const inFlight = agents.filter((a) => isInFlight(a, stages)).length
   const live = agents.filter((a) => isLiveAgent(a, stages)).length
   const behind = agents.filter((a) => isAgentBehind(a, a.agent_stages, stages)).length
@@ -65,7 +66,20 @@ export function SummaryStrip({ agents, stages }: Props) {
           Every Copilot Studio request, from intake to live.
         </h2>
 
-        <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-5">
+          <Tile
+            label="Pending approval"
+            value={pending}
+            tone="amber"
+            icon={
+              <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden>
+                <path
+                  fill="currentColor"
+                  d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm1 5v6.2l3.4 2.03-.8 1.34L11 14V7h2Z"
+                />
+              </svg>
+            }
+          />
           <Tile
             label="In flight"
             value={inFlight}
