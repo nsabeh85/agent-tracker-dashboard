@@ -1,12 +1,8 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { ThemeToggle } from './ThemeToggle'
-import { useAuth } from '../lib/auth'
 import { isDemoMode } from '../lib/supabase'
-import { initials } from '../lib/schedule'
 
 export function Layout() {
-  const { admin, session } = useAuth()
-
   return (
     <div className="min-h-svh">
       <header className="border-ink-200/70 dark:border-ink-800 dark:bg-ink-950/70 sticky top-0 z-30 border-b bg-white/80 backdrop-blur-md">
@@ -30,37 +26,18 @@ export function Layout() {
           </Link>
 
           <nav className="flex items-center gap-2 text-sm">
-            {admin ? (
-              <>
-                <NavLink
-                  to="/agents/new"
-                  className="bg-brand-600 shadow-brand-600/25 hover:bg-brand-700 rounded-full px-4 py-2 font-semibold text-white shadow-lg transition hover:-translate-y-0.5"
-                >
-                  New agent
-                </NavLink>
-                <NavLink
-                  to="/settings"
-                  className="text-ink-500 hover:bg-ink-100 hover:text-ink-900 dark:text-ink-400 dark:hover:bg-ink-800 dark:hover:text-ink-100 rounded-full px-3 py-2 font-medium transition"
-                >
-                  Settings
-                </NavLink>
-                <span
-                  title={admin.email}
-                  className="bg-brand-100 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300 hidden h-9 w-9 items-center justify-center rounded-full text-xs font-bold sm:flex"
-                >
-                  {initials(admin.display_name)}
-                </span>
-              </>
-            ) : session ? (
-              <span className="text-ink-400">Signed in</span>
-            ) : (
-              <NavLink
-                to="/login"
-                className="text-ink-500 hover:bg-ink-100 hover:text-ink-900 dark:text-ink-400 dark:hover:bg-ink-800 dark:hover:text-ink-100 rounded-full px-3 py-2 font-medium transition"
-              >
-                Admin sign in
-              </NavLink>
-            )}
+            <NavLink
+              to="/agents/new"
+              className="bg-brand-600 shadow-brand-600/25 hover:bg-brand-700 rounded-full px-4 py-2 font-semibold text-white shadow-lg transition hover:-translate-y-0.5"
+            >
+              New agent
+            </NavLink>
+            <NavLink
+              to="/settings"
+              className="text-ink-500 hover:bg-ink-100 hover:text-ink-900 dark:text-ink-400 dark:hover:bg-ink-800 dark:hover:text-ink-100 rounded-full px-3 py-2 font-medium transition"
+            >
+              Settings
+            </NavLink>
             <ThemeToggle />
           </nav>
         </div>
@@ -83,7 +60,7 @@ export function Layout() {
       </main>
 
       <footer className="text-ink-400 dark:text-ink-500 mx-auto max-w-6xl px-4 pb-10 text-xs">
-        Updated by the Copilot Studio team. Anyone can view; only the agent team can edit.
+        Anyone with the link can view and update this tracker.
       </footer>
     </div>
   )

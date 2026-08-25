@@ -1,18 +1,14 @@
 import { useState, type FormEvent } from 'react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
-import { useAuth } from '../lib/auth'
+import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import type { AgentPriority } from '../types/database'
 
 const OWNERS = ['Nabih', 'Mark']
 
 export function NewAgentPage() {
-  const { admin, loading } = useAuth()
   const navigate = useNavigate()
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-
-  if (!loading && !admin) return <Navigate to="/login" replace />
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()

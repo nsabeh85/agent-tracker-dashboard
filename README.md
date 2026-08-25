@@ -1,18 +1,15 @@
 # Copilot Studio Agent Tracker
 
-Public status dashboard for Copilot Studio agent requests. Viewers need no login. Two admins (Nabih and Mark) sign in with a Supabase magic link to update milestones and comments.
+Shared status dashboard for Copilot Studio agent requests. Anyone with the link can view and update requests, stages, comments, and settings. There is no login.
 
 ## Stack
 
-Vite, React, TypeScript, Tailwind CSS, and Supabase (Postgres, Auth, RLS, Realtime). There is no app server. Deploy the static build to Vercel or Netlify.
+Vite, React, TypeScript, Tailwind CSS, and Supabase (Postgres, RLS, Realtime). There is no app server. Deploy the static build to Vercel, Netlify, or Azure Static Web Apps.
 
 ## 1. Create the Supabase project
 
 1. Create a project in the [Supabase dashboard](https://supabase.com/dashboard).
-2. Apply migrations from `supabase/migrations` with the CLI (`supabase link` then `supabase db push`) or paste them in order into the SQL editor. Later files add a **Pending approval** status and load the current PCT AI Request backlog (40 rows). The backlog seed is idempotent.
-3. Enable Email / magic link in **Authentication → Providers**.
-4. Set **Authentication → URL configuration** Site URL to your deployed origin. Add `http://localhost:5173` to Redirect URLs for local work.
-5. Seed the admin allowlist. Edit `supabase/seed_admins.sql` with the real emails, then run it in the SQL editor (migrations cannot guess those addresses).
+2. Apply migrations from `supabase/migrations` with the CLI (`supabase link` then `supabase db push`) or paste them in order into the SQL editor. Later files add a **Pending approval** status, load the current PCT AI Request backlog (40 rows), and open writes to the public `anon` key. The backlog seed is idempotent.
 
 ## 2. Run the app
 
@@ -33,7 +30,7 @@ exists. Real data replaces it as soon as the keys are present.
 
 ## 3. Deploy
 
-Build with `npm run build`. The host must rewrite SPA routes to `index.html` and set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` **at build time** (Vite inlines them). After deploy, add the production origin to Supabase **Authentication → URL configuration** (Site URL and Redirect URLs).
+Build with `npm run build`. The host must rewrite SPA routes to `index.html` and set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` **at build time** (Vite inlines them).
 
 ### Azure Static Web Apps
 
@@ -61,13 +58,9 @@ as `dark:` variants rather than media queries.
 
 ## Access model
 
-Row Level Security is the gate:
+Row Level Security is the gate. `anon` and `authenticated` can `SELECT`, `INSERT`, `UPDATE`, and `DELETE` tracker tables, and can call `create_agent`. Anyone who has the published URL and anon key can change data. Treat the site as an internal shared board, not a public internet app.
 
-- `anon` and `authenticated` can `SELECT` tracker tables.
-- `INSERT` / `UPDATE` / `DELETE` require `auth.jwt() ->> 'email'` to exist in `admins`.
-- `admins` is readable by authenticated users only.
-
-The UI hides write controls without a session. Do not treat that as security.
+The unused `admins` table remains in the schema from earlier versions but is not used by the UI.
 
 ## Regenerating types
 

@@ -1,30 +1,13 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useCatalog, useRealtimeTick } from '../hooks/useTracker'
-import { useAuth } from '../lib/auth'
 import { supabase } from '../lib/supabase'
-import type { Admin, Stage, Substep } from '../types/database'
+import type { Stage, Substep } from '../types/database'
 
 export function SettingsPage() {
-  const { admin, loading } = useAuth()
   const tick = useRealtimeTick()
   const { stages, substeps, reload } = useCatalog(tick)
-  const [admins, setAdmins] = useState<Admin[]>([])
   const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!admin) return
-    void supabase
-      .from('admins')
-      .select('*')
-      .order('display_name')
-      .then(({ data, error: queryError }) => {
-        if (queryError) setError(queryError.message)
-        else setAdmins(data ?? [])
-      })
-  }, [admin, tick])
-
-  if (!loading && !admin) return <Navigate to="/login" replace />
 
   async function moveStage(stage: Stage, direction: -1 | 1) {
     const ordered = [...stages].sort((a, b) => a.sort_order - b.sort_order)
@@ -153,31 +136,6 @@ export function SettingsPage() {
     else await reload()
   }
 
-  async function addAdmin(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const formEl = event.currentTarget
-    const form = new FormData(formEl)
-    const email = String(form.get('email') ?? '').trim().toLowerCase()
-    const display_name = String(form.get('display_name') ?? '').trim()
-    const { error: insertError } = await supabase.from('admins').insert({ email, display_name })
-    if (insertError) setError(insertError.message)
-    else {
-      formEl.reset()
-      setAdmins((rows) =>
-        [...rows, { email, display_name }].sort((a, b) =>
-          a.display_name.localeCompare(b.display_name),
-        ),
-      )
-    }
-  }
-
-  async function removeAdmin(email: string) {
-    if (!window.confirm(`Remove ${email} from the allowlist?`)) return
-    const { error: deleteError } = await supabase.from('admins').delete().eq('email', email)
-    if (deleteError) setError(deleteError.message)
-    else setAdmins((rows) => rows.filter((row) => row.email !== email))
-  }
-
   return (
     <div className="space-y-10">
       <p className="text-sm">
@@ -187,10 +145,10 @@ export function SettingsPage() {
       </p>
       <div>
         <h2 className="text-2xl font-semibold tracking-tight text-ink-900 dark:text-ink-50">
-          Admin settings
+          Settings
         </h2>
         <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">
-          Manage workflow settings and choose who can edit the tracker.
+          Manage the stage and sub-step catalog used when a new request is created.
         </p>
       </div>
       {error ? <p className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}
@@ -298,45 +256,6 @@ export function SettingsPage() {
         })}
       </section>
 
-      <section className="space-y-4">
-        <h3 className="text-sm font-semibold tracking-wide text-ink-400 uppercase">
-          People who can edit
-        </h3>
-        <p className="text-sm text-ink-500 dark:text-ink-400">
-          Everyone else can view the dashboard but cannot make changes.
-        </p>
-        <ul className="divide-y divide-ink-100 dark:divide-ink-800 rounded-2xl border border-ink-200 dark:border-ink-800 bg-white dark:bg-ink-900">
-          {admins.map((row) => (
-            <li key={row.email} className="flex items-center justify-between px-4 py-3 text-sm">
-              <span>
-                <span className="font-semibold text-ink-800 dark:text-ink-100">{row.display_name}</span>
-                <span className="ml-2 text-ink-400">{row.email}</span>
-              </span>
-              <button type="button" className="text-red-500 dark:text-red-400" onClick={() => void removeAdmin(row.email)}>
-                Remove
-              </button>
-            </li>
-          ))}
-        </ul>
-        <form onSubmit={(e) => void addAdmin(e)} className="flex flex-col gap-2 md:flex-row">
-          <input
-            name="display_name"
-            required
-            placeholder="Display name"
-            className="rounded-xl border border-ink-200 dark:border-ink-800 px-3 py-2 text-sm"
-          />
-          <input
-            name="email"
-            type="email"
-            required
-            placeholder="Email"
-            className="flex-1 rounded-xl border border-ink-200 dark:border-ink-800 px-3 py-2 text-sm"
-          />
-          <button type="submit" className="rounded-full bg-ink-900 dark:bg-brand-600 px-4 py-2 text-sm font-semibold text-white">
-            Add admin
-          </button>
-        </form>
-      </section>
     </div>
   )
 }

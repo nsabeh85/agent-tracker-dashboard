@@ -9,7 +9,6 @@ import {
   useCatalog,
   useRealtimeTick,
 } from '../hooks/useTracker'
-import { useAuth } from '../lib/auth'
 import {
   dueLabel,
   formatDate,
@@ -47,7 +46,6 @@ export function AgentDetailPage() {
   const tick = useRealtimeTick()
   const { stages } = useCatalog(tick)
   const { agent, substeps, comments, loading, error, reload } = useAgentDetail(id, tick)
-  const { admin } = useAuth()
   const [openStageId, setOpenStageId] = useState<string | null>(null)
   const [stageToggleReady, setStageToggleReady] = useState(false)
 
@@ -141,7 +139,7 @@ export function AgentDetailPage() {
         />
       </section>
 
-      {admin ? <AdminControls agent={agent} rows={rows} onSaved={reload} /> : null}
+      <AgentActions agent={agent} rows={rows} onSaved={reload} />
 
       <section className="space-y-3">
         <h3 className="text-ink-400 px-1 text-xs font-bold tracking-[0.12em] uppercase">
@@ -157,7 +155,6 @@ export function AgentDetailPage() {
             onToggle={() =>
               setOpenStageId((currentId) => (currentId === row.id ? null : row.id))
             }
-            canEdit={Boolean(admin)}
             onSaved={reload}
           />
         ))}
@@ -167,8 +164,6 @@ export function AgentDetailPage() {
         agentId={agent.id}
         rows={rows}
         comments={comments}
-        canWrite={Boolean(admin)}
-        author={admin}
         onSaved={reload}
       />
     </div>
@@ -190,7 +185,6 @@ function StageCard({
   substeps,
   open,
   onToggle,
-  canEdit,
   onSaved,
 }: {
   row: AgentStage & { stage: Stage }
@@ -198,7 +192,6 @@ function StageCard({
   substeps: AgentSubstep[]
   open: boolean
   onToggle: () => void
-  canEdit: boolean
   onSaved: () => Promise<void>
 }) {
   const behind = isStageBehind(row)
@@ -292,75 +285,54 @@ function StageCard({
         <div className="border-ink-100 dark:border-ink-800 space-y-5 border-t px-4 py-4 md:px-5">
           <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
             <Field label="Expected days">
-              {canEdit ? (
-                <input
-                  type="number"
-                  min={0}
-                  defaultValue={row.expected_duration_days}
-                  className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
-                  onBlur={(e) => {
-                    const value = Number(e.target.value)
-                    if (value !== row.expected_duration_days) {
-                      void updateStage({ expected_duration_days: value })
-                    }
-                  }}
-                />
-              ) : (
-                <span>{row.expected_duration_days}</span>
-              )}
+              <input
+                type="number"
+                min={0}
+                defaultValue={row.expected_duration_days}
+                className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
+                onBlur={(e) => {
+                  const value = Number(e.target.value)
+                  if (value !== row.expected_duration_days) {
+                    void updateStage({ expected_duration_days: value })
+                  }
+                }}
+              />
             </Field>
             <Field label="Actual start">
-              {canEdit ? (
-                <input
-                  type="date"
-                  defaultValue={row.actual_start ?? ''}
-                  className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
-                  onBlur={(e) => {
-                    const value = e.target.value || null
-                    if (value !== row.actual_start) void updateStage({ actual_start: value })
-                  }}
-                />
-              ) : (
-                <span>{formatDate(row.actual_start)}</span>
-              )}
+              <input
+                type="date"
+                defaultValue={row.actual_start ?? ''}
+                className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
+                onBlur={(e) => {
+                  const value = e.target.value || null
+                  if (value !== row.actual_start) void updateStage({ actual_start: value })
+                }}
+              />
             </Field>
             <Field label="Actual end">
-              {canEdit ? (
-                <input
-                  type="date"
-                  defaultValue={row.actual_end ?? ''}
-                  className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
-                  onBlur={(e) => {
-                    const value = e.target.value || null
-                    if (value !== row.actual_end) void updateStage({ actual_end: value })
-                  }}
-                />
-              ) : (
-                <span>{formatDate(row.actual_end)}</span>
-              )}
+              <input
+                type="date"
+                defaultValue={row.actual_end ?? ''}
+                className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
+                onBlur={(e) => {
+                  const value = e.target.value || null
+                  if (value !== row.actual_end) void updateStage({ actual_end: value })
+                }}
+              />
             </Field>
             <Field label="Status">
-              {canEdit ? (
-                <select
-                  value={row.status}
-                  className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
-                  onChange={(e) =>
-                    void updateStage({ status: e.target.value as ProgressStatus })
-                  }
-                >
-                  <option value="not_started">Not started</option>
-                  <option value="in_progress">In progress</option>
-                  <option value="complete">Complete</option>
-                  <option value="blocked">Blocked</option>
-                </select>
-              ) : (
-                <span
-                  className={`font-medium ${behind ? 'text-amber-700 dark:text-amber-300' : ''}`}
-                >
-                  {statusLabel(row.status)}
-                  {behind ? ' · running late' : ''}
-                </span>
-              )}
+              <select
+                value={row.status}
+                className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
+                onChange={(e) =>
+                  void updateStage({ status: e.target.value as ProgressStatus })
+                }
+              >
+                <option value="not_started">Not started</option>
+                <option value="in_progress">In progress</option>
+                <option value="complete">Complete</option>
+                <option value="blocked">Blocked</option>
+              </select>
             </Field>
           </div>
 
@@ -378,33 +350,20 @@ function StageCard({
                       : 'hover:bg-ink-50 dark:hover:bg-ink-800/40',
                   ].join(' ')}
                 >
-                  {canEdit ? (
-                    <button
-                      type="button"
-                      onClick={() => void toggleSubstep(step)}
-                      aria-pressed={stepDone}
-                      aria-label={`Mark ${step.name} ${stepDone ? 'not done' : 'done'}`}
-                      className={[
-                        'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition',
-                        stepDone
-                          ? 'border-emerald-500 bg-emerald-500 text-white'
-                          : 'border-ink-300 hover:border-brand-500 dark:border-ink-600 bg-white dark:bg-transparent',
-                      ].join(' ')}
-                    >
-                      {stepDone ? <CheckIcon className="pop h-3 w-3" /> : null}
-                    </button>
-                  ) : (
-                    <span
-                      className={[
-                        'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2',
-                        stepDone
-                          ? 'border-emerald-500 bg-emerald-500 text-white'
-                          : 'border-ink-200 dark:border-ink-700 bg-white dark:bg-transparent',
-                      ].join(' ')}
-                    >
-                      {stepDone ? <CheckIcon className="h-3 w-3" /> : null}
-                    </span>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => void toggleSubstep(step)}
+                    aria-pressed={stepDone}
+                    aria-label={`Mark ${step.name} ${stepDone ? 'not done' : 'done'}`}
+                    className={[
+                      'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition',
+                      stepDone
+                        ? 'border-emerald-500 bg-emerald-500 text-white'
+                        : 'border-ink-300 hover:border-brand-500 dark:border-ink-600 bg-white dark:bg-transparent',
+                    ].join(' ')}
+                  >
+                    {stepDone ? <CheckIcon className="pop h-3 w-3" /> : null}
+                  </button>
 
                   <span className="min-w-0 flex-1">
                     <span
@@ -443,7 +402,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
-function AdminControls({
+function AgentActions({
   agent,
   rows,
   onSaved,
@@ -548,7 +507,7 @@ function AdminControls({
     <div className="border-brand-200 bg-brand-50/60 dark:border-brand-500/30 dark:bg-brand-500/10 space-y-3 rounded-2xl border border-dashed p-3">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-brand-700 dark:text-brand-300 mr-1 text-xs font-bold tracking-[0.12em] uppercase">
-          Admin
+          Actions
         </span>
         <button
           type="button"
@@ -688,34 +647,54 @@ function EditField({
   )
 }
 
+const COMMENT_NAME_KEY = 'agent-tracker-comment-name'
+const COMMENT_EMAIL_KEY = 'agent-tracker-comment-email'
+
+function readStored(key: string): string {
+  try {
+    return window.localStorage.getItem(key) ?? ''
+  } catch {
+    return ''
+  }
+}
+
+function writeStored(key: string, value: string) {
+  try {
+    window.localStorage.setItem(key, value)
+  } catch {
+    // Storage can be blocked.
+  }
+}
+
 function CommentThread({
   agentId,
   rows,
   comments,
-  canWrite,
-  author,
   onSaved,
 }: {
   agentId: string
   rows: Array<AgentStage & { stage: Stage }>
   comments: Comment[]
-  canWrite: boolean
-  author: { email: string; display_name: string } | null
   onSaved: () => Promise<void>
 }) {
   const [body, setBody] = useState('')
+  const [authorName, setAuthorName] = useState(() => readStored(COMMENT_NAME_KEY))
+  const [authorEmail, setAuthorEmail] = useState(() => readStored(COMMENT_EMAIL_KEY))
   const [stageId, setStageId] = useState('')
   const [saving, setSaving] = useState(false)
 
   async function submit(e: FormEvent) {
     e.preventDefault()
-    if (!author || !body.trim()) return
+    const name = authorName.trim()
+    if (!name || !body.trim()) return
+    writeStored(COMMENT_NAME_KEY, name)
+    writeStored(COMMENT_EMAIL_KEY, authorEmail.trim())
     setSaving(true)
     const { error } = await supabase.from('comments').insert({
       agent_id: agentId,
       agent_stage_id: stageId || null,
-      author_email: author.email,
-      author_name: author.display_name,
+      author_email: authorEmail.trim() || 'anonymous',
+      author_name: name,
       body: body.trim(),
     })
     setSaving(false)
@@ -735,45 +714,56 @@ function CommentThread({
         Comments
       </h3>
 
-      {canWrite && author ? (
-        <form
-          onSubmit={(e) => void submit(e)}
-          className="border-ink-200/80 dark:border-ink-800 dark:bg-ink-900 space-y-3 rounded-2xl border bg-white p-4 shadow-sm"
-        >
-          <textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            rows={3}
-            placeholder="Post an update for everyone watching this agent…"
-            className="border-ink-200 focus:border-brand-500 focus:ring-brand-100 dark:border-ink-700 dark:text-ink-100 dark:focus:ring-brand-500/20 w-full resize-y rounded-xl border px-3 py-2.5 text-sm outline-none focus:ring-4"
+      <form
+        onSubmit={(e) => void submit(e)}
+        className="border-ink-200/80 dark:border-ink-800 dark:bg-ink-900 space-y-3 rounded-2xl border bg-white p-4 shadow-sm"
+      >
+        <div className="grid gap-2 sm:grid-cols-2">
+          <input
+            type="text"
+            required
+            value={authorName}
+            onChange={(e) => setAuthorName(e.target.value)}
+            placeholder="Your name"
+            className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:text-ink-100 w-full rounded-xl border px-3 py-2 text-sm outline-none"
           />
-          <div className="flex flex-wrap items-center gap-2">
-            <select
-              value={stageId}
-              onChange={(e) => setStageId(e.target.value)}
-              className="border-ink-200 text-ink-700 dark:border-ink-700 dark:text-ink-200 rounded-full border px-3 py-1.5 text-sm"
-            >
-              <option value="">No stage tag</option>
-              {rows.map((row) => (
-                <option key={row.id} value={row.id}>
-                  {row.stage.name}
-                </option>
-              ))}
-            </select>
-            <button
-              type="submit"
-              disabled={saving || !body.trim()}
-              className="bg-ink-900 hover:bg-ink-800 dark:bg-brand-600 dark:hover:bg-brand-500 ml-auto rounded-full px-4 py-1.5 text-sm font-semibold text-white transition disabled:opacity-40"
-            >
-              {saving ? 'Posting…' : 'Post update'}
-            </button>
-          </div>
-        </form>
-      ) : (
-        <p className="border-ink-200 text-ink-400 dark:border-ink-700 rounded-2xl border border-dashed px-4 py-3 text-sm">
-          Comments are posted by the agent team.
-        </p>
-      )}
+          <input
+            type="email"
+            value={authorEmail}
+            onChange={(e) => setAuthorEmail(e.target.value)}
+            placeholder="Email (optional)"
+            className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:text-ink-100 w-full rounded-xl border px-3 py-2 text-sm outline-none"
+          />
+        </div>
+        <textarea
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          rows={3}
+          placeholder="Post an update for everyone watching this agent…"
+          className="border-ink-200 focus:border-brand-500 focus:ring-brand-100 dark:border-ink-700 dark:text-ink-100 dark:focus:ring-brand-500/20 w-full resize-y rounded-xl border px-3 py-2.5 text-sm outline-none focus:ring-4"
+        />
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={stageId}
+            onChange={(e) => setStageId(e.target.value)}
+            className="border-ink-200 text-ink-700 dark:border-ink-700 dark:text-ink-200 rounded-full border px-3 py-1.5 text-sm"
+          >
+            <option value="">No stage tag</option>
+            {rows.map((row) => (
+              <option key={row.id} value={row.id}>
+                {row.stage.name}
+              </option>
+            ))}
+          </select>
+          <button
+            type="submit"
+            disabled={saving || !body.trim() || !authorName.trim()}
+            className="bg-ink-900 hover:bg-ink-800 dark:bg-brand-600 dark:hover:bg-brand-500 ml-auto rounded-full px-4 py-1.5 text-sm font-semibold text-white transition disabled:opacity-40"
+          >
+            {saving ? 'Posting…' : 'Post update'}
+          </button>
+        </div>
+      </form>
 
       <ul className="space-y-2">
         {comments.map((comment) => (
