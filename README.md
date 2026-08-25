@@ -33,9 +33,24 @@ exists. Real data replaces it as soon as the keys are present.
 
 ## 3. Deploy
 
-Build with `npm run build`. Point Vercel or Netlify at the repo; `vercel.json` and `netlify.toml` already rewrite SPA routes to `index.html`. Set the same two `VITE_*` environment variables in the host.
+Build with `npm run build`. The host must rewrite SPA routes to `index.html` and set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` **at build time** (Vite inlines them). After deploy, add the production origin to Supabase **Authentication → URL configuration** (Site URL and Redirect URLs).
 
-After deploy, add the production URL to Supabase Auth redirect URLs.
+### Azure Static Web Apps
+
+`public/staticwebapp.config.json` is copied into `dist/` and falls client routes back to `index.html`. `.github/workflows/azure-static-web-apps.yml` builds on Node 22 and uploads `dist/`.
+
+1. In Azure Portal, create a **Static Web App** (Free or Standard). You can skip the portal’s generated workflow; this repo already has one.
+2. In GitHub → **Settings → Secrets and variables → Actions**, add:
+   - `AZURE_STATIC_WEB_APPS_API_TOKEN` — deployment token from the Static Web App (**Manage deployment token**)
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+3. Push to `main` (or open a PR for a preview environment). Do not store the Supabase **service role** key in GitHub or Azure.
+
+If you create the Static Web App with GitHub connected, Azure may try to commit a second workflow. Keep this repo’s file and paste the token into `AZURE_STATIC_WEB_APPS_API_TOKEN` instead.
+
+### Vercel or Netlify
+
+Point the host at the repo; `vercel.json` and `netlify.toml` already rewrite SPA routes to `index.html`. Set the same two `VITE_*` variables in the host.
 
 ## Theme
 
