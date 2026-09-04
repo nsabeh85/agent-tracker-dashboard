@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { isDemoMode, supabase } from '../lib/supabase'
+import { isUuid } from '../lib/tracking'
 import {
   demoAgentSubsteps,
   demoAgents,
@@ -130,6 +131,78 @@ export function useAgentDetail(agentId: string | undefined, tick: number) {
     else setComments(commentRes.data ?? [])
     setLoading(false)
   }, [agentId])
+
+  useEffect(() => {
+    void reload()
+  }, [reload, tick])
+
+  return { agent, substeps, comments, loading, error, reload }
+}
+
+export function usePublicAgent(token: string | undefined, tick: number) {
+  const [agent, setAgent] = useState<AgentWithStages | null>(null)
+  const [substeps, setSubsteps] = useState<AgentSubstep[]>([])
+  const [comments, setComments] = useState<Comment[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const reload = useCallback(async () => {
+    if (!token) {
+      setLoading(false)
+      return
+    }
+
+    if (isDemoMode) {
+      const match =
+        demoAgents.find((row) => row.public_token === token || row.id === token) ?? null
+      setAgent(match)
+      setSubsteps(match ? demoAgentSubsteps.filter((row) => row.agent_id === match.id) : [])
+      setComments(match ? demoComments.filter((row) => row.agent_id === match.id) : [])
+      setLoading(false)
+      return
+    }
+
+    const select = '*, agent_stages(*)'
+    let agentRes = await supabase.from('agents').select(select).eq('public_token', token).maybeSingle()
+
+    // Before the public_token migration the column is absent, so fall back to the request id.
+    if ((agentRes.error || !agentRes.data) && isUuid(token)) {
+      agentRes = await supabase.from('agents').select(select).eq('id', token).maybeSingle()
+    }
+
+    if (agentRes.error) {
+      setError(agentRes.error.message)
+      setAgent(null)
+      setSubsteps([])
+      setComments([])
+      setLoading(false)
+      return
+    }
+
+    const matched = (agentRes.data as AgentWithStages | null) ?? null
+    if (!matched) {
+      setError(null)
+      setAgent(null)
+      setSubsteps([])
+      setComments([])
+      setLoading(false)
+      return
+    }
+
+    const [subRes, commentRes] = await Promise.all([
+      supabase.from('agent_substeps').select('*').eq('agent_id', matched.id).order('sort_order'),
+      supabase
+        .from('comments')
+        .select('*')
+        .eq('agent_id', matched.id)
+        .order('created_at', { ascending: false }),
+    ])
+    setAgent(matched)
+    setError(subRes.error?.message ?? commentRes.error?.message ?? null)
+    if (!subRes.error) setSubsteps(subRes.data ?? [])
+    if (!commentRes.error) setComments(commentRes.data ?? [])
+    setLoading(false)
+  }, [token])
 
   useEffect(() => {
     void reload()

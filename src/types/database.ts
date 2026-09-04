@@ -139,6 +139,7 @@ export type Database = {
           description: string
           id: string
           priority: AgentPriority
+          public_token: string
           requester_department: string
           requester_name: string
           status: AgentStatus
@@ -153,6 +154,7 @@ export type Database = {
           description?: string
           id?: string
           priority?: AgentPriority
+          public_token?: string
           requester_department: string
           requester_name: string
           status?: AgentStatus
@@ -167,6 +169,7 @@ export type Database = {
           description?: string
           id?: string
           priority?: AgentPriority
+          public_token?: string
           requester_department?: string
           requester_name?: string
           status?: AgentStatus

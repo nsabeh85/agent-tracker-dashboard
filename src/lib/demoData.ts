@@ -100,10 +100,17 @@ function buildSubsteps(row: JiraIntake, stages: AgentStage[]): AgentSubstep[] {
   )
 }
 
+/** Stable 32-char token so preview mode can open /track/:token without Supabase. */
+export function demoPublicToken(id: string): string {
+  const slug = id.replace(/[^a-zA-Z0-9]/g, 'x')
+  return `demo${slug}`.padEnd(32, 'x').slice(0, 32)
+}
+
 export const demoAgents: AgentWithStages[] = JIRA_INTAKE.map((row) => {
   const created = daysAgo(row.created)
+  const id = row.key.toLowerCase()
   return {
-    id: row.key.toLowerCase(),
+    id,
     title: row.title,
     requester_name: requesterName(row.assignee),
     requester_department: row.department,
@@ -113,6 +120,7 @@ export const demoAgents: AgentWithStages[] = JIRA_INTAKE.map((row) => {
     target_go_live: null,
     assigned_to: ownerName(row.assignee),
     status: 'pending_approval',
+    public_token: demoPublicToken(id),
     created_at: stamp(-created),
     updated_at: stamp(-created),
     agent_stages: buildStages(row),
@@ -124,4 +132,14 @@ export const demoAgentSubsteps: AgentSubstep[] = JIRA_INTAKE.flatMap((row) => {
   return buildSubsteps(row, stages)
 })
 
-export const demoComments: Comment[] = []
+export const demoComments: Comment[] = demoAgents.slice(0, 1).flatMap((agent) => [
+  {
+    id: `${agent.id}-c1`,
+    agent_id: agent.id,
+    agent_stage_id: agent.agent_stages[1]?.id ?? null,
+    author_email: 'team',
+    author_name: 'PCT team',
+    body: 'We have started work on this request. Use this page to follow progress and leave questions — we will reply here.',
+    created_at: stamp(-2),
+  },
+])
