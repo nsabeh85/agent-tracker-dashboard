@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   addDays,
+  allSubstepsComplete,
+  canAutoAdvance,
+  stageItemsComplete,
   createdThisMonth,
   daysUntil,
   dueLabel,
@@ -9,6 +12,7 @@ import {
   isInFlight,
   isPastTargetGoLive,
   isStageBehind,
+  nextStageAfter,
   parseISODate,
 } from './schedule'
 import type { Stage } from '../types/database'
@@ -147,5 +151,57 @@ describe('date presentation', () => {
     expect(initials('Nabih')).toBe('N')
     expect(initials('Priya Raman')).toBe('PR')
     expect(initials('  ')).toBe('')
+  })
+})
+
+describe('stage auto-advance', () => {
+  const rows = stages.map((stage) => ({ stage }))
+
+  it('finds the next stage in catalog order regardless of input order', () => {
+    expect(nextStageAfter(rows, rows[1])?.stage.id).toBe('s3')
+    expect(nextStageAfter([...rows].reverse(), rows[1])?.stage.id).toBe('s3')
+  })
+
+  it('returns null at the end of the workflow', () => {
+    expect(nextStageAfter(rows, rows[4])).toBeNull()
+  })
+
+  it('advances only the stage the tracker points at', () => {
+    expect(canAutoAdvance({ status: 'in_progress', stage_id: 's2' }, 's2')).toBe(true)
+    expect(canAutoAdvance({ status: 'in_progress', stage_id: 's4' }, 's2')).toBe(false)
+  })
+
+  it('refuses to advance a stage that is already complete', () => {
+    expect(canAutoAdvance({ status: 'complete', stage_id: 's2' }, 's2')).toBe(false)
+  })
+
+  it('treats a stage as finished only when every sub-step is complete', () => {
+    expect(allSubstepsComplete([{ status: 'complete' }, { status: 'complete' }])).toBe(true)
+    expect(allSubstepsComplete([{ status: 'complete' }, { status: 'in_progress' }])).toBe(false)
+    expect(allSubstepsComplete([{ status: 'blocked' }])).toBe(false)
+  })
+
+  it('never finishes a stage that has no sub-steps by ticking', () => {
+    expect(allSubstepsComplete([])).toBe(false)
+  })
+
+  it('treats a stage with no items as ready to advance', () => {
+    expect(stageItemsComplete([])).toBe(true)
+    expect(canAutoAdvance({ status: 'in_progress', stage_id: 's2' }, 's2', [])).toBe(true)
+  })
+
+  it('does not auto-advance while any item is still open', () => {
+    expect(
+      canAutoAdvance({ status: 'in_progress', stage_id: 's2' }, 's2', [
+        { status: 'complete' },
+        { status: 'not_started' },
+      ]),
+    ).toBe(false)
+    expect(
+      canAutoAdvance({ status: 'in_progress', stage_id: 's2' }, 's2', [
+        { status: 'complete' },
+        { status: 'complete' },
+      ]),
+    ).toBe(true)
   })
 })

@@ -10,6 +10,9 @@ import {
   useRealtimeTick,
 } from '../hooks/useTracker'
 import {
+  allSubstepsComplete,
+  canAutoAdvance,
+  stageItemsComplete,
   dueLabel,
   formatDate,
   formatDateTime,
@@ -150,6 +153,8 @@ export function AgentDetailPage() {
             key={row.id}
             row={row}
             position={index + 1}
+            agentId={agent.id}
+            currentStageId={agent.current_stage_id}
             substeps={substeps.filter((s) => s.agent_stage_id === row.id)}
             open={openStageId === row.id}
             onToggle={() =>
@@ -182,6 +187,8 @@ function Chip({ label, value }: { label: string; value: string }) {
 function StageCard({
   row,
   position,
+  agentId,
+  currentStageId,
   substeps,
   open,
   onToggle,
@@ -189,6 +196,8 @@ function StageCard({
 }: {
   row: AgentStage & { stage: Stage }
   position: number
+  agentId: string
+  currentStageId: string
   substeps: AgentSubstep[]
   open: boolean
   onToggle: () => void
@@ -205,6 +214,20 @@ function StageCard({
     else await onSaved()
   }
 
+  /** Atomically completes this current stage and starts the next one. */
+  async function completeAndAdvance(itemStatuses = substeps) {
+    if (!canAutoAdvance(row, currentStageId, itemStatuses)) return
+    const { error } = await supabase.rpc('complete_stage_and_advance', {
+      p_agent_id: agentId,
+      p_agent_stage_id: row.id,
+    })
+    if (error) {
+      window.alert(error.message)
+      return
+    }
+    await onSaved()
+  }
+
   async function toggleSubstep(step: AgentSubstep) {
     const next: ProgressStatus = step.status === 'complete' ? 'not_started' : 'complete'
     const { error } = await supabase
@@ -216,8 +239,18 @@ function StageCard({
           next === 'complete' && !step.actual_start ? todayISO() : step.actual_start,
       })
       .eq('id', step.id)
-    if (error) window.alert(error.message)
-    else await onSaved()
+    if (error) {
+      window.alert(error.message)
+      return
+    }
+
+    const settled = substeps.map((s) => (s.id === step.id ? { ...s, status: next } : s))
+    if (next === 'complete' && row.status !== 'complete' && allSubstepsComplete(settled)) {
+      await completeAndAdvance(settled)
+      return
+    }
+
+    await onSaved()
   }
 
   return (
@@ -324,9 +357,19 @@ function StageCard({
               <select
                 value={row.status}
                 className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
-                onChange={(e) =>
-                  void updateStage({ status: e.target.value as ProgressStatus })
-                }
+                onChange={(e) => {
+                  const status = e.target.value as ProgressStatus
+                  if (status !== 'complete') {
+                    void updateStage({ status })
+                    return
+                  }
+                  if (!stageItemsComplete(substeps)) {
+                    window.alert('Mark every item in this stage complete before the tracker can move on.')
+                    return
+                  }
+                  if (row.stage_id === currentStageId) void completeAndAdvance()
+                  else void updateStage({ status: 'complete', actual_end: row.actual_end ?? todayISO() })
+                }}
               >
                 <option value="not_started">Not started</option>
                 <option value="in_progress">In progress</option>
