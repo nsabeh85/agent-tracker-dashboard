@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { parseSavingsAmount } from '../lib/savings'
 import type { AgentPriority } from '../types/database'
 
 const OWNERS = ['Nabih', 'Mark']
@@ -16,6 +17,12 @@ export function NewAgentPage() {
     setSaving(true)
     setError(null)
     const goLive = String(form.get('target_go_live') ?? '')
+    const savings = parseSavingsAmount(String(form.get('savings_amount') ?? ''))
+    if (savings === 'invalid') {
+      setSaving(false)
+      setError('Money saved must be a number 0 or greater.')
+      return
+    }
     const { data, error: rpcError } = await supabase.rpc('create_agent', {
       p_title: String(form.get('title') ?? '').trim(),
       p_requester_name: String(form.get('requester_name') ?? '').trim(),
@@ -30,7 +37,19 @@ export function NewAgentPage() {
       setError(rpcError.message)
       return
     }
-    if (data) navigate(`/agents/${data}`)
+    if (data) {
+      const cadence =
+        String(form.get('savings_cadence') ?? 'yearly') === 'monthly' ? 'monthly' : 'yearly'
+      const { error: savingsError } = await supabase
+        .from('agents')
+        .update({ savings_amount: savings, savings_cadence: cadence })
+        .eq('id', data)
+      if (savingsError) {
+        setError(savingsError.message)
+        return
+      }
+      navigate(`/agents/${data}`)
+    }
   }
 
   return (
@@ -85,6 +104,28 @@ export function NewAgentPage() {
                 {name}
               </option>
             ))}
+          </select>
+        </label>
+        <label className="block text-xs font-medium text-ink-500 dark:text-ink-400">
+          Money saved (optional)
+          <input
+            type="number"
+            name="savings_amount"
+            min={0}
+            step="0.01"
+            placeholder="e.g. 12000"
+            className="mt-1 w-full rounded-xl border border-ink-200 px-3 py-2 text-sm text-ink-800 dark:border-ink-800 dark:text-ink-100"
+          />
+        </label>
+        <label className="block text-xs font-medium text-ink-500 dark:text-ink-400">
+          Savings period
+          <select
+            name="savings_cadence"
+            defaultValue="yearly"
+            className="mt-1 w-full rounded-xl border border-ink-200 px-3 py-2 text-sm dark:border-ink-800"
+          >
+            <option value="yearly">Yearly</option>
+            <option value="monthly">Monthly</option>
           </select>
         </label>
         {error ? <p className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}

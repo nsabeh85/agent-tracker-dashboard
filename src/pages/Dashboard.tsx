@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { SavingsBreakdown } from '../components/SavingsBreakdown'
 import { SummaryStrip } from '../components/SummaryStrip'
 import { ProgressBar } from '../components/ProgressBar'
 import { ScheduleMarker } from '../components/ScheduleMarker'
@@ -13,6 +14,7 @@ import {
   isPastTargetGoLive,
   statusLabel,
 } from '../lib/schedule'
+import { savingsLabel } from '../lib/savings'
 import type { AgentPriority, AgentWithStages, Stage } from '../types/database'
 
 type SortKey = 'target' | 'priority' | 'updated'
@@ -142,6 +144,8 @@ export function DashboardPage() {
         </p>
       </div>
 
+      <SavingsBreakdown agents={agents} stages={stages} />
+
       {error ? (
         <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
           {error}
@@ -186,6 +190,7 @@ function AgentListItem({
   const overdue = isPastTargetGoLive(agent, stages)
   const behind = isAgentBehind(agent, agent.agent_stages, stages)
   const live = isLiveAgent(agent, stages)
+  const savings = live ? savingsLabel(agent.savings_amount, agent.savings_cadence) : null
   const accent = overdue
     ? 'bg-red-500'
     : behind
@@ -272,6 +277,11 @@ function AgentListItem({
             >
               {live ? 'Live now' : dueLabel(agent.target_go_live)}
             </p>
+            {savings ? (
+              <p className="text-emerald-700 dark:text-emerald-400 mt-1 text-xs font-semibold">
+                Saves {savings}
+              </p>
+            ) : null}
           </div>
         </div>
       </Link>

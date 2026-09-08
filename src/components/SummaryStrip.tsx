@@ -5,6 +5,7 @@ import {
   isInFlight,
   isLiveAgent,
 } from '../lib/schedule'
+import { formatUsd, totalLiveAnnualSavings } from '../lib/savings'
 import type { AgentWithStages, Stage } from '../types/database'
 
 type Props = {
@@ -134,6 +135,15 @@ export function SummaryStrip({ agents, stages }: Props) {
             }
           />
         </div>
+
+        <p className="mt-5 rounded-2xl bg-white/10 px-4 py-3 ring-1 ring-white/15">
+          <span className="block text-[10px] font-bold tracking-[0.16em] text-white/60 uppercase">
+            Estimated annual savings (live)
+          </span>
+          <span className="mt-1 block text-2xl font-bold tracking-tight text-white">
+            {formatUsd(totalLiveAnnualSavings(agents, stages))}
+          </span>
+        </p>
       </div>
     </section>
   )
