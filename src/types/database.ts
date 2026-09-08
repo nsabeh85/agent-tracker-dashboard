@@ -141,6 +141,7 @@ export type Database = {
           priority: AgentPriority
           requester_department: string
           requester_name: string
+          copilot_studio_url: string | null
           status: AgentStatus
           target_go_live: string | null
           title: string
@@ -155,6 +156,7 @@ export type Database = {
           priority?: AgentPriority
           requester_department: string
           requester_name: string
+          copilot_studio_url?: string | null
           status?: AgentStatus
           target_go_live?: string | null
           title: string
@@ -169,6 +171,7 @@ export type Database = {
           priority?: AgentPriority
           requester_department?: string
           requester_name?: string
+          copilot_studio_url?: string | null
           status?: AgentStatus
           target_go_live?: string | null
           title?: string

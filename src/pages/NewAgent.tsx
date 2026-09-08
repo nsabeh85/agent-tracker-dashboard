@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { isHttpsUrl } from '../lib/copilotStudioLink'
 import { supabase } from '../lib/supabase'
 import type { AgentPriority } from '../types/database'
 
@@ -16,6 +17,12 @@ export function NewAgentPage() {
     setSaving(true)
     setError(null)
     const goLive = String(form.get('target_go_live') ?? '')
+    const studioUrl = String(form.get('copilot_studio_url') ?? '').trim()
+    if (!isHttpsUrl(studioUrl)) {
+      setSaving(false)
+      setError('Copilot Studio link must be a valid HTTPS URL.')
+      return
+    }
     const { data, error: rpcError } = await supabase.rpc('create_agent', {
       p_title: String(form.get('title') ?? '').trim(),
       p_requester_name: String(form.get('requester_name') ?? '').trim(),
@@ -30,7 +37,17 @@ export function NewAgentPage() {
       setError(rpcError.message)
       return
     }
-    if (data) navigate(`/agents/${data}`)
+    if (data) {
+      const { error: linkError } = await supabase
+        .from('agents')
+        .update({ copilot_studio_url: studioUrl || null })
+        .eq('id', data)
+      if (linkError) {
+        setError(linkError.message)
+        return
+      }
+      navigate(`/agents/${data}`)
+    }
   }
 
   return (
@@ -75,6 +92,15 @@ export function NewAgentPage() {
             type="date"
             name="target_go_live"
             className="mt-1 w-full rounded-xl border border-ink-200 dark:border-ink-800 px-3 py-2 text-sm"
+          />
+        </label>
+        <label className="block text-xs font-medium text-ink-500 dark:text-ink-400">
+          Copilot Studio link (optional)
+          <input
+            type="url"
+            name="copilot_studio_url"
+            placeholder="https://copilotstudio.microsoft.com/..."
+            className="mt-1 w-full rounded-xl border border-ink-200 px-3 py-2 text-sm text-ink-800 dark:border-ink-800 dark:text-ink-100"
           />
         </label>
         <label className="block text-xs font-medium text-ink-500 dark:text-ink-400">

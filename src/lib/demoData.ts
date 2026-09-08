@@ -113,11 +113,17 @@ export const demoAgents: AgentWithStages[] = JIRA_INTAKE.map((row) => {
     target_go_live: null,
     assigned_to: ownerName(row.assignee),
     status: 'pending_approval',
+    copilot_studio_url: null,
     created_at: stamp(-created),
     updated_at: stamp(-created),
     agent_stages: buildStages(row),
   }
 })
+
+if (demoAgents[0]) {
+  demoAgents[0].copilot_studio_url =
+    'https://copilotstudio.microsoft.com/environments/example/bots/legal-intake'
+}
 
 export const demoAgentSubsteps: AgentSubstep[] = JIRA_INTAKE.flatMap((row) => {
   const stages = demoAgents.find((agent) => agent.id === row.key.toLowerCase())?.agent_stages ?? []

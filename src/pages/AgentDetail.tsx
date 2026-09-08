@@ -19,6 +19,7 @@ import {
   statusLabel,
   todayISO,
 } from '../lib/schedule'
+import { copilotStudioLabel, isHttpsUrl } from '../lib/copilotStudioLink'
 import { supabase } from '../lib/supabase'
 import type {
   Agent,
@@ -103,6 +104,16 @@ export function AgentDetailPage() {
 
           {agent.description ? (
             <p className="max-w-2xl text-sm leading-relaxed text-white/75">{agent.description}</p>
+          ) : null}
+          {agent.copilot_studio_url ? (
+            <a
+              href={agent.copilot_studio_url}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-white ring-1 ring-white/20 transition hover:bg-white/20"
+            >
+              Open in Copilot Studio ({copilotStudioLabel(agent.copilot_studio_url)})
+            </a>
           ) : null}
 
           <div className="flex flex-wrap gap-2 text-xs">
@@ -470,6 +481,11 @@ function AgentActions({
     event.preventDefault()
     const form = new FormData(event.currentTarget)
     const goLive = String(form.get('target_go_live') ?? '')
+    const studioUrl = String(form.get('copilot_studio_url') ?? '').trim() || null
+    if (studioUrl && !isHttpsUrl(studioUrl)) {
+      window.alert('Copilot Studio link must be a valid HTTPS URL.')
+      return
+    }
     setBusy(true)
     const { error } = await supabase
       .from('agents')
@@ -481,6 +497,7 @@ function AgentActions({
         priority: String(form.get('priority') ?? 'medium') as AgentPriority,
         assigned_to: String(form.get('assigned_to') ?? '').trim(),
         target_go_live: goLive || null,
+        copilot_studio_url: studioUrl,
       })
       .eq('id', agent.id)
     setBusy(false)
@@ -592,6 +609,17 @@ function AgentActions({
               className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
             />
           </Field>
+          <div className="sm:col-span-2">
+            <Field label="Copilot Studio link">
+              <input
+                type="url"
+                name="copilot_studio_url"
+                defaultValue={agent.copilot_studio_url ?? ''}
+                placeholder="https://copilotstudio.microsoft.com/..."
+                className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
+              />
+            </Field>
+          </div>
           <div className="sm:col-span-2">
             <Field label="Description">
               <textarea
