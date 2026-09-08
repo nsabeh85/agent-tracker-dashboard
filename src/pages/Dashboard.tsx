@@ -64,7 +64,8 @@ function Select({
 
 export function DashboardPage() {
   const tick = useRealtimeTick()
-  const { stages } = useCatalog(tick)
+  const { stages, owners: ownerCatalog } = useCatalog(tick)
+  const owners = ownerCatalog.filter((owner) => owner.active)
   const { agents, loading, error } = useAgents(tick)
 
   const [stageId, setStageId] = useState('')
@@ -73,10 +74,6 @@ export function DashboardPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [sort, setSort] = useState<SortKey>('target')
 
-  const owners = useMemo(
-    () => [...new Set(agents.map((a) => a.assigned_to))].sort(),
-    [agents],
-  )
   const departments = useMemo(
     () => [...new Set(agents.map((a) => a.requester_department))].sort(),
     [agents],
@@ -87,7 +84,13 @@ export function DashboardPage() {
       .filter((agent) => {
         if (statusFilter !== 'all' && agent.status !== statusFilter) return false
         if (stageId && agent.current_stage_id !== stageId) return false
-        if (owner && agent.assigned_to !== owner) return false
+        if (
+          owner &&
+          !agent.agent_owners.some((assignment) => assignment.owner.full_name === owner) &&
+          !(agent.agent_owners.length === 0 && agent.assigned_to === owner)
+        ) {
+          return false
+        }
         if (department && agent.requester_department !== department) return false
         return true
       })
@@ -109,9 +112,9 @@ export function DashboardPage() {
         </Select>
         <Select label="Owner" value={owner} onChange={setOwner}>
           <option value="">All owners</option>
-          {owners.map((name) => (
-            <option key={name} value={name}>
-              {name}
+          {owners.map((owner) => (
+            <option key={owner.id} value={owner.full_name}>
+              {owner.full_name}
             </option>
           ))}
         </Select>
@@ -186,6 +189,9 @@ function AgentListItem({
   const overdue = isPastTargetGoLive(agent, stages)
   const behind = isAgentBehind(agent, agent.agent_stages, stages)
   const live = isLiveAgent(agent, stages)
+  const ownerSummary =
+    agent.agent_owners.map((assignment) => assignment.owner.full_name).join(', ') ||
+    agent.assigned_to
   const accent = overdue
     ? 'bg-red-500'
     : behind
@@ -237,9 +243,9 @@ function AgentListItem({
               ) : null}
               <span className="text-ink-500 dark:text-ink-400 inline-flex items-center gap-1.5 font-medium">
                 <span className="bg-brand-100 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300 inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold">
-                  {initials(agent.assigned_to)}
+                  {initials(ownerSummary)}
                 </span>
-                {agent.assigned_to}
+                {ownerSummary}
               </span>
             </div>
           </div>

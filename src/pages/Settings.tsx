@@ -2,12 +2,66 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useCatalog, useRealtimeTick } from '../hooks/useTracker'
 import { supabase } from '../lib/supabase'
-import type { Stage, Substep } from '../types/database'
+import type { Owner, Stage, Substep } from '../types/database'
+
+function isFullName(name: string): boolean {
+  return /^\S+(?:\s+\S+)+$/.test(name)
+}
 
 export function SettingsPage() {
   const tick = useRealtimeTick()
-  const { stages, substeps, reload } = useCatalog(tick)
+  const { stages, substeps, owners, error: catalogError, reload } = useCatalog(tick)
   const [error, setError] = useState<string | null>(null)
+
+  async function addOwner() {
+    const fullName = window.prompt('Owner full name (first and last)')
+    if (!fullName?.trim()) return
+    const normalized = fullName.trim().replace(/\s+/g, ' ')
+    if (!isFullName(normalized)) {
+      setError('Enter both a first and last name.')
+      return
+    }
+    const nextOrder = owners.reduce((max, owner) => Math.max(max, owner.sort_order), 0) + 1
+    const { error: insertError } = await supabase
+      .from('owners')
+      .insert({ full_name: normalized, sort_order: nextOrder })
+    if (insertError) setError(insertError.message)
+    else {
+      setError(null)
+      await reload()
+    }
+  }
+
+  async function renameOwner(owner: Owner) {
+    const fullName = window.prompt('Owner full name (first and last)', owner.full_name)
+    if (!fullName?.trim()) return
+    const normalized = fullName.trim().replace(/\s+/g, ' ')
+    if (!isFullName(normalized)) {
+      setError('Enter both a first and last name.')
+      return
+    }
+    const { error: updateError } = await supabase
+      .from('owners')
+      .update({ full_name: normalized })
+      .eq('id', owner.id)
+    if (updateError) setError(updateError.message)
+    else {
+      setError(null)
+      await reload()
+    }
+  }
+
+  async function setOwnerActive(owner: Owner, active: boolean) {
+    const { error: updateError } = await supabase
+      .from('owners')
+      .update({ active })
+      .eq('id', owner.id)
+    if (updateError) setError(updateError.message)
+    else {
+      setError(null)
+      await reload()
+    }
+  }
 
   async function moveStage(stage: Stage, direction: -1 | 1) {
     const ordered = [...stages].sort((a, b) => a.sort_order - b.sort_order)
@@ -148,10 +202,62 @@ export function SettingsPage() {
           Settings
         </h2>
         <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">
-          Manage the stage and sub-step catalog used when a new request is created.
+          Manage owners and the stage catalog used when a new request is created.
         </p>
       </div>
-      {error ? <p className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}
+      {error || catalogError ? (
+        <p className="text-sm text-red-600 dark:text-red-400">{error ?? catalogError}</p>
+      ) : null}
+
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold tracking-wide text-ink-400 uppercase">
+              Owners
+            </h3>
+            <p className="mt-1 text-xs text-ink-500 dark:text-ink-400">
+              Inactive owners remain on historical requests but disappear from dropdowns.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void addOwner()}
+            className="text-sm font-semibold text-brand-700 dark:text-brand-300"
+          >
+            Add owner
+          </button>
+        </div>
+        <ul className="divide-y divide-ink-100 overflow-hidden rounded-2xl border border-ink-200 bg-white dark:divide-ink-800 dark:border-ink-800 dark:bg-ink-900">
+          {owners.map((owner) => (
+            <li key={owner.id} className="flex items-center gap-3 px-4 py-3">
+              <span className="flex-1 text-sm font-medium text-ink-900 dark:text-ink-50">
+                {owner.full_name}
+              </span>
+              <span className="text-xs text-ink-400">
+                {owner.active ? 'Active' : 'Inactive'}
+              </span>
+              <button
+                type="button"
+                className="text-xs text-ink-500 dark:text-ink-400"
+                onClick={() => void renameOwner(owner)}
+              >
+                Rename
+              </button>
+              <button
+                type="button"
+                className={
+                  owner.active
+                    ? 'text-xs text-red-500 dark:text-red-400'
+                    : 'text-xs text-brand-700 dark:text-brand-300'
+                }
+                onClick={() => void setOwnerActive(owner, !owner.active)}
+              >
+                {owner.active ? 'Deactivate' : 'Reactivate'}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       <section className="space-y-4">
         <div className="flex items-center justify-between">
