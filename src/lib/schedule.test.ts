@@ -15,6 +15,7 @@ import {
   nextStageAfter,
   parseISODate,
 } from './schedule'
+import { isMissingFunctionError } from './supabase'
 import type { Stage } from '../types/database'
 
 const stages: Stage[] = [
@@ -203,5 +204,26 @@ describe('stage auto-advance', () => {
         { status: 'complete' },
       ]),
     ).toBe(true)
+  })
+})
+
+describe('missing RPC detection', () => {
+  it('recognizes PostgREST and Postgres missing-function errors', () => {
+    expect(isMissingFunctionError({ code: 'PGRST202', message: 'Could not find the function' })).toBe(
+      true,
+    )
+    expect(isMissingFunctionError({ code: '42883', message: 'function does not exist' })).toBe(true)
+    expect(
+      isMissingFunctionError({
+        message: 'Could not find the function public.complete_stage_and_advance',
+      }),
+    ).toBe(true)
+  })
+
+  it('does not treat business-rule failures as a missing function', () => {
+    expect(
+      isMissingFunctionError({ message: 'Every item in the current stage must be complete' }),
+    ).toBe(false)
+    expect(isMissingFunctionError(null)).toBe(false)
   })
 })

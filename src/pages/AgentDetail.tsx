@@ -12,6 +12,7 @@ import {
 import {
   allSubstepsComplete,
   canAutoAdvance,
+  nextStageAfter,
   stageItemsComplete,
   dueLabel,
   formatDate,
@@ -22,7 +23,7 @@ import {
   statusLabel,
   todayISO,
 } from '../lib/schedule'
-import { supabase } from '../lib/supabase'
+import { isMissingFunctionError, supabase } from '../lib/supabase'
 import type {
   Agent,
   AgentPriority,
@@ -155,6 +156,7 @@ export function AgentDetailPage() {
             position={index + 1}
             agentId={agent.id}
             currentStageId={agent.current_stage_id}
+            stageRows={rows}
             substeps={substeps.filter((s) => s.agent_stage_id === row.id)}
             open={openStageId === row.id}
             onToggle={() =>
@@ -189,6 +191,7 @@ function StageCard({
   position,
   agentId,
   currentStageId,
+  stageRows,
   substeps,
   open,
   onToggle,
@@ -198,6 +201,7 @@ function StageCard({
   position: number
   agentId: string
   currentStageId: string
+  stageRows: Array<AgentStage & { stage: Stage }>
   substeps: AgentSubstep[]
   open: boolean
   onToggle: () => void
@@ -214,16 +218,51 @@ function StageCard({
     else await onSaved()
   }
 
-  /** Atomically completes this current stage and starts the next one. */
+  /** Completes this current stage and starts the next one, preferring the RPC. */
   async function completeAndAdvance(itemStatuses = substeps) {
     if (!canAutoAdvance(row, currentStageId, itemStatuses)) return
     const { error } = await supabase.rpc('complete_stage_and_advance', {
       p_agent_id: agentId,
       p_agent_stage_id: row.id,
     })
-    if (error) {
+    if (!error) {
+      await onSaved()
+      return
+    }
+    if (!isMissingFunctionError(error)) {
       window.alert(error.message)
       return
+    }
+
+    const next = nextStageAfter(stageRows, row)
+    const { error: completeError } = await supabase
+      .from('agent_stages')
+      .update({ status: 'complete', actual_end: row.actual_end ?? todayISO() })
+      .eq('id', row.id)
+    if (completeError) {
+      window.alert(completeError.message)
+      return
+    }
+    if (next) {
+      const { error: nextError } = await supabase
+        .from('agent_stages')
+        .update({
+          status: 'in_progress',
+          actual_start: next.actual_start ?? todayISO(),
+        })
+        .eq('id', next.id)
+      if (nextError) {
+        window.alert(nextError.message)
+        return
+      }
+      const { error: agentError } = await supabase
+        .from('agents')
+        .update({ current_stage_id: next.stage_id })
+        .eq('id', agentId)
+      if (agentError) {
+        window.alert(agentError.message)
+        return
+      }
     }
     await onSaved()
   }
