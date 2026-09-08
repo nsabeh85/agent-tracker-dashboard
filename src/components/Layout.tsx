@@ -4,6 +4,18 @@ import { useAuth } from '../lib/auth'
 import { initials } from '../lib/schedule'
 import { isDemoMode, supabase } from '../lib/supabase'
 
+const NAV_LINK =
+  'rounded-full px-3 py-2 font-medium transition hover:-translate-y-0.5'
+
+function navLinkClass({ isActive }: { isActive: boolean }): string {
+  return [
+    NAV_LINK,
+    isActive
+      ? 'bg-brand-600 shadow-brand-600/25 text-white shadow-lg'
+      : 'text-ink-500 hover:bg-ink-100 hover:text-ink-900 dark:text-ink-400 dark:hover:bg-ink-800 dark:hover:text-ink-100',
+  ].join(' ')
+}
+
 export function Layout() {
   const navigate = useNavigate()
   const { admin, configured, isDlrUser, session } = useAuth()
@@ -20,9 +32,18 @@ export function Layout() {
           <Link to="/" className="group flex min-w-0 items-center gap-3">
             <span className="from-brand-500 to-brand-700 shadow-brand-600/30 flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br shadow-lg transition-transform group-hover:scale-105">
               <svg viewBox="0 0 24 24" className="h-5 w-5 text-white" aria-hidden>
-                <circle cx="5" cy="12" r="2.6" fill="currentColor" />
-                <circle cx="12" cy="12" r="2.6" fill="currentColor" />
-                <circle cx="19" cy="12" r="2.6" fill="currentColor" opacity="0.45" />
+                <path
+                  d="m3.5 17.5 5-5 4 2.5 8-9"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <circle cx="3.5" cy="17.5" r="2" fill="currentColor" />
+                <circle cx="8.5" cy="12.5" r="2" fill="currentColor" />
+                <circle cx="12.5" cy="15" r="2" fill="currentColor" />
+                <circle cx="20.5" cy="6" r="2" fill="currentColor" />
               </svg>
             </span>
             <span className="min-w-0">
@@ -40,13 +61,13 @@ export function Layout() {
               <>
                 <NavLink
                   to="/agents/new"
-                  className="bg-brand-600 shadow-brand-600/25 hover:bg-brand-700 rounded-full px-4 py-2 font-semibold text-white shadow-lg transition hover:-translate-y-0.5"
+                  className={navLinkClass}
                 >
                   New agent
                 </NavLink>
                 <NavLink
                   to="/settings"
-                  className="text-ink-500 hover:bg-ink-100 hover:text-ink-900 dark:text-ink-400 dark:hover:bg-ink-800 dark:hover:text-ink-100 rounded-full px-3 py-2 font-medium transition"
+                  className={navLinkClass}
                 >
                   Settings
                 </NavLink>
