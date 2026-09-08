@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useCatalog, useRealtimeTick } from '../hooks/useTracker'
 import { supabase } from '../lib/supabase'
 import type { AgentPriority } from '../types/database'
 
@@ -7,6 +8,9 @@ const OWNERS = ['Nabih', 'Mark']
 
 export function NewAgentPage() {
   const navigate = useNavigate()
+  const tick = useRealtimeTick()
+  const { departments, error: catalogError } = useCatalog(tick)
+  const activeDepartments = departments.filter((department) => department.active)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -48,7 +52,24 @@ export function NewAgentPage() {
       <form onSubmit={(e) => void onSubmit(e)} className="space-y-4 rounded-2xl border border-ink-200 dark:border-ink-800 bg-white dark:bg-ink-900 p-5">
         <Input name="title" label="Title" required />
         <Input name="requester_name" label="Requester name" required />
-        <Input name="requester_department" label="Department" required />
+        <label className="block text-xs font-medium text-ink-500 dark:text-ink-400">
+          Department
+          <select
+            name="requester_department"
+            required
+            defaultValue=""
+            className="mt-1 w-full rounded-xl border border-ink-200 px-3 py-2 text-sm dark:border-ink-800"
+          >
+            <option value="" disabled>
+              Select a department
+            </option>
+            {activeDepartments.map((department) => (
+              <option key={department.id} value={department.name}>
+                {department.name}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="block text-xs font-medium text-ink-500 dark:text-ink-400">
           Description
           <textarea
@@ -87,7 +108,9 @@ export function NewAgentPage() {
             ))}
           </select>
         </label>
-        {error ? <p className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}
+        {error || catalogError ? (
+          <p className="text-sm text-red-600 dark:text-red-400">{error ?? catalogError}</p>
+        ) : null}
         <button
           type="submit"
           disabled={saving}
