@@ -28,6 +28,7 @@ import type {
   AgentStatus,
   AgentSubstep,
   Comment,
+  Department,
   ProgressStatus,
   Stage,
 } from '../types/database'
@@ -45,7 +46,7 @@ const STATUS_PILL: Record<ProgressStatus, string> = {
 export function AgentDetailPage() {
   const { id } = useParams()
   const tick = useRealtimeTick()
-  const { stages } = useCatalog(tick)
+  const { stages, departments } = useCatalog(tick)
   const { agent, substeps, comments, loading, error, reload } = useAgentDetail(id, tick)
   const [openStageId, setOpenStageId] = useState<string | null>(null)
   const [stageToggleReady, setStageToggleReady] = useState(false)
@@ -153,7 +154,12 @@ export function AgentDetailPage() {
         />
       </section>
 
-      <AgentActions agent={agent} rows={rows} onSaved={reload} />
+      <AgentActions
+        agent={agent}
+        rows={rows}
+        departments={departments}
+        onSaved={reload}
+      />
 
       <section className="space-y-3">
         <h3 className="text-ink-400 px-1 text-xs font-bold tracking-[0.12em] uppercase">
@@ -419,10 +425,12 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 function AgentActions({
   agent,
   rows,
+  departments,
   onSaved,
 }: {
   agent: Agent
   rows: Array<AgentStage & { stage: Stage }>
+  departments: Department[]
   onSaved: () => Promise<void>
 }) {
   const navigate = useNavigate()
@@ -586,12 +594,28 @@ function AgentActions({
             defaultValue={agent.requester_name}
             required
           />
-          <EditField
-            label="Department"
-            name="requester_department"
-            defaultValue={agent.requester_department}
-            required
-          />
+          <Field label="Department">
+            <select
+              name="requester_department"
+              defaultValue={agent.requester_department}
+              required
+              className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
+            >
+              {!departments.some(
+                (department) =>
+                  department.active && department.name === agent.requester_department,
+              ) ? (
+                <option value={agent.requester_department}>{agent.requester_department}</option>
+              ) : null}
+              {departments
+                .filter((department) => department.active)
+                .map((department) => (
+                  <option key={department.id} value={department.name}>
+                    {department.name}
+                  </option>
+                ))}
+            </select>
+          </Field>
           <EditField label="Owner" name="assigned_to" defaultValue={agent.assigned_to} required />
           <Field label="Priority">
             <select
