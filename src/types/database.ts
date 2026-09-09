@@ -229,6 +229,30 @@ export type Database = {
           },
         ]
       }
+      departments: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       stages: {
         Row: {
           default_duration_days: number
@@ -318,6 +342,7 @@ export type AgentStage = Database['public']['Tables']['agent_stages']['Row']
 export type AgentSubstep = Database['public']['Tables']['agent_substeps']['Row']
 export type Comment = Database['public']['Tables']['comments']['Row']
 export type Admin = Database['public']['Tables']['admins']['Row']
+export type Department = Database['public']['Tables']['departments']['Row']
 
 export type AgentWithStages = Agent & {
   agent_stages: AgentStage[]

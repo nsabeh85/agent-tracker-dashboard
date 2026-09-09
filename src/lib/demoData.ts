@@ -4,6 +4,7 @@ import type {
   AgentSubstep,
   AgentWithStages,
   Comment,
+  Department,
   Stage,
   Substep,
 } from '../types/database'
@@ -64,6 +65,18 @@ export const demoSubsteps: Substep[] = CATALOG.flatMap((stage, index) =>
     default_duration_days: null,
   })),
 )
+
+export const demoDepartments: Department[] = [
+  ...new Set(JIRA_INTAKE.map((row) => row.department)),
+]
+  .sort()
+  .map((name, index) => ({
+    id: `department-${index + 1}`,
+    name,
+    active: true,
+    sort_order: index + 1,
+    created_at: '2026-01-01T00:00:00Z',
+  }))
 
 function daysAgo(isoDate: string): number {
   const created = new Date(`${isoDate}T12:00:00`)

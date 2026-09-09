@@ -59,7 +59,7 @@ function Select({
 
 export function DashboardPage() {
   const tick = useRealtimeTick()
-  const { stages } = useCatalog(tick)
+  const { stages, departments: departmentCatalog } = useCatalog(tick)
   const { agents, loading, error } = useAgents(tick)
 
   const [stageId, setStageId] = useState('')
@@ -73,10 +73,7 @@ export function DashboardPage() {
     () => [...new Set(agents.map((a) => a.assigned_to))].sort(),
     [agents],
   )
-  const departments = useMemo(
-    () => [...new Set(agents.map((a) => a.requester_department))].sort(),
-    [agents],
-  )
+  const departments = departmentCatalog.filter((department) => department.active)
 
   const visible = useMemo(() => {
     return agents
@@ -127,9 +124,9 @@ export function DashboardPage() {
         </Select>
         <Select label="Department" value={department} onChange={setDepartment}>
           <option value="">All departments</option>
-          {departments.map((name) => (
-            <option key={name} value={name}>
-              {name}
+          {departments.map((department) => (
+            <option key={department.id} value={department.name}>
+              {department.name}
             </option>
           ))}
         </Select>
