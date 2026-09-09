@@ -4,6 +4,7 @@ import {
   demoAgentSubsteps,
   demoAgents,
   demoComments,
+  demoDepartments,
   demoOwners,
   demoStages,
   demoSubsteps,
@@ -24,6 +25,7 @@ const TRACKER_TABLES = [
   'agent_stage_owners',
   'agent_substeps',
   'comments',
+  'departments',
   'owners',
 ] as const
 
@@ -53,14 +55,16 @@ export function useCatalog(tick: number) {
   const [stages, setStages] = useState<Stage[]>(isDemoMode ? demoStages : [])
   const [substeps, setSubsteps] = useState<Substep[]>(isDemoMode ? demoSubsteps : [])
   const [owners, setOwners] = useState(isDemoMode ? demoOwners : [])
+  const [departments, setDepartments] = useState(isDemoMode ? demoDepartments : [])
   const [error, setError] = useState<string | null>(null)
 
   const reload = useCallback(async () => {
     if (isDemoMode) return
-    const [stageRes, substepRes, ownerRes] = await Promise.all([
+    const [stageRes, substepRes, ownerRes, departmentRes] = await Promise.all([
       supabase.from('stages').select('*').order('sort_order'),
       supabase.from('substeps').select('*').order('sort_order'),
       supabase.from('owners').select('*').order('sort_order').order('full_name'),
+      supabase.from('departments').select('*').order('sort_order').order('name'),
     ])
     if (stageRes.error) setError(stageRes.error.message)
     else setStages(stageRes.data)
@@ -68,13 +72,15 @@ export function useCatalog(tick: number) {
     else setSubsteps(substepRes.data)
     if (ownerRes.error) setError(ownerRes.error.message)
     else setOwners(ownerRes.data)
+    if (departmentRes.error) setError(departmentRes.error.message)
+    else setDepartments(departmentRes.data)
   }, [])
 
   useEffect(() => {
     void reload()
   }, [reload, tick])
 
-  return { stages, substeps, owners, error, reload }
+  return { stages, substeps, owners, departments, error, reload }
 }
 
 export function useAgents(tick: number) {

@@ -1,4 +1,4 @@
-import type { Agent, AgentStage, ProgressStatus, Stage } from '../types/database'
+import type { Agent, AgentStage, AgentSubstep, ProgressStatus, Stage } from '../types/database'
 
 export function parseISODate(iso: string): Date {
   const [year, month, day] = iso.split('-').map(Number)
@@ -130,6 +130,52 @@ export function createdThisMonth(iso: string, today: Date = new Date()): boolean
     created.getFullYear() === today.getFullYear() &&
     created.getMonth() === today.getMonth()
   )
+}
+
+/** The next stage row in catalog order, or null when `row` is the last stage. */
+export function nextStageAfter<T extends { stage: Stage }>(rows: T[], row: T): T | null {
+  const ordered = [...rows].sort((a, b) => a.stage.sort_order - b.stage.sort_order)
+  const index = ordered.findIndex((candidate) => candidate.stage.id === row.stage.id)
+  if (index < 0) return null
+  return ordered[index + 1] ?? null
+}
+
+export const GO_LIVE_BEFORE_TESTING =
+  'Set a target go-live date before a request can enter Testing.'
+
+/** The only extra required field: a go-live date before Testing. */
+export function needsGoLiveDate(
+  nextStageName: string | undefined,
+  targetGoLive: string | null | undefined,
+): boolean {
+  return nextStageName === 'Testing' && !targetGoLive
+}
+
+/** True when every item is complete, including a stage that has no items. */
+export function stageItemsComplete(substeps: Pick<AgentSubstep, 'status'>[]): boolean {
+  return substeps.every((step) => step.status === 'complete')
+}
+
+/**
+ * Completing a stage moves the tracker only when that stage is the one the
+ * tracker already points at, it has items, every item is complete, and it is
+ * not already complete, so a repeated completion cannot advance twice.
+ */
+export function canAutoAdvance(
+  row: Pick<AgentStage, 'status' | 'stage_id'>,
+  currentStageId: string,
+  substeps: Pick<AgentSubstep, 'status'>[] = [],
+): boolean {
+  return (
+    row.stage_id === currentStageId &&
+    row.status !== 'complete' &&
+    allSubstepsComplete(substeps)
+  )
+}
+
+/** A stage counts as finished by ticking only when it has items and all are complete. */
+export function allSubstepsComplete(substeps: Pick<AgentSubstep, 'status'>[]): boolean {
+  return substeps.length > 0 && stageItemsComplete(substeps)
 }
 
 export function progressTone(

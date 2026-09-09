@@ -2,14 +2,16 @@ import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { OwnerMultiSelect } from '../components/OwnerMultiSelect'
 import { useCatalog, useRealtimeTick } from '../hooks/useTracker'
+import { isHttpsUrl } from '../lib/sourceLink'
 import { supabase } from '../lib/supabase'
 import type { AgentPriority } from '../types/database'
 
 export function NewAgentPage() {
   const navigate = useNavigate()
   const tick = useRealtimeTick()
-  const { owners: ownerCatalog, error: ownerError } = useCatalog(tick)
+  const { owners: ownerCatalog, departments, error: catalogError } = useCatalog(tick)
   const owners = ownerCatalog.filter((owner) => owner.active)
+  const activeDepartments = departments.filter((department) => department.active)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [ownerIds, setOwnerIds] = useState<string[]>([])
@@ -21,6 +23,11 @@ export function NewAgentPage() {
       return
     }
     const form = new FormData(event.currentTarget)
+    const sourceUrl = String(form.get('source_url') ?? '').trim()
+    if (!isHttpsUrl(sourceUrl)) {
+      setError('Source request must be a valid HTTPS URL.')
+      return
+    }
     setSaving(true)
     setError(null)
     const goLive = String(form.get('target_go_live') ?? '')
@@ -33,11 +40,23 @@ export function NewAgentPage() {
       p_target_go_live: goLive || null,
       p_owner_ids: ownerIds,
     })
-    setSaving(false)
     if (rpcError) {
+      setSaving(false)
       setError(rpcError.message)
       return
     }
+    if (data && sourceUrl) {
+      const { error: sourceError } = await supabase
+        .from('agents')
+        .update({ source_url: sourceUrl })
+        .eq('id', data)
+      if (sourceError) {
+        setSaving(false)
+        setError(sourceError.message)
+        return
+      }
+    }
+    setSaving(false)
     if (data) navigate(`/agents/${data}`)
   }
 
@@ -56,13 +75,39 @@ export function NewAgentPage() {
       <form onSubmit={(e) => void onSubmit(e)} className="space-y-4 rounded-2xl border border-ink-200 dark:border-ink-800 bg-white dark:bg-ink-900 p-5">
         <Input name="title" label="Title" required />
         <Input name="requester_name" label="Requester name" required />
-        <Input name="requester_department" label="Department" required />
+        <label className="block text-xs font-medium text-ink-500 dark:text-ink-400">
+          Department
+          <select
+            name="requester_department"
+            required
+            defaultValue=""
+            className="mt-1 w-full rounded-xl border border-ink-200 px-3 py-2 text-sm dark:border-ink-800"
+          >
+            <option value="" disabled>
+              Select a department
+            </option>
+            {activeDepartments.map((department) => (
+              <option key={department.id} value={department.name}>
+                {department.name}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="block text-xs font-medium text-ink-500 dark:text-ink-400">
           Description
           <textarea
             name="description"
             rows={4}
             className="mt-1 w-full rounded-xl border border-ink-200 dark:border-ink-800 px-3 py-2 text-sm text-ink-800 dark:text-ink-100"
+          />
+        </label>
+        <label className="block text-xs font-medium text-ink-500 dark:text-ink-400">
+          Source request link (optional)
+          <input
+            type="url"
+            name="source_url"
+            placeholder="https://digitalrealty-cdo.atlassian.net/browse/PCT-123"
+            className="mt-1 w-full rounded-xl border border-ink-200 px-3 py-2 text-sm text-ink-800 dark:border-ink-800 dark:text-ink-100"
           />
         </label>
         <label className="block text-xs font-medium text-ink-500 dark:text-ink-400">
@@ -96,10 +141,9 @@ export function NewAgentPage() {
             />
           </span>
         </label>
-        {ownerError ? (
-          <p className="text-sm text-red-600 dark:text-red-400">{ownerError}</p>
+        {error || catalogError ? (
+          <p className="text-sm text-red-600 dark:text-red-400">{error ?? catalogError}</p>
         ) : null}
-        {error ? <p className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}
         <button
           type="submit"
           disabled={saving}

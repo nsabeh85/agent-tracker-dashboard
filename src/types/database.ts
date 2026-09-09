@@ -201,6 +201,7 @@ export type Database = {
           priority: AgentPriority
           requester_department: string
           requester_name: string
+          source_url: string | null
           status: AgentStatus
           target_go_live: string | null
           title: string
@@ -215,6 +216,7 @@ export type Database = {
           priority?: AgentPriority
           requester_department: string
           requester_name: string
+          source_url?: string | null
           status?: AgentStatus
           target_go_live?: string | null
           title: string
@@ -229,6 +231,7 @@ export type Database = {
           priority?: AgentPriority
           requester_department?: string
           requester_name?: string
+          source_url?: string | null
           status?: AgentStatus
           target_go_live?: string | null
           title?: string
@@ -288,6 +291,30 @@ export type Database = {
             referencedColumns: ['id']
           },
         ]
+      }
+      departments: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
       }
       owners: {
         Row: {
@@ -371,6 +398,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      complete_stage_and_advance: {
+        Args: {
+          p_agent_id: string
+          p_agent_stage_id: string
+        }
+        Returns: string
+      }
       create_agent_with_owners: {
         Args: {
           p_description: string
@@ -378,6 +412,19 @@ export type Database = {
           p_priority: AgentPriority
           p_requester_department: string
           p_requester_name: string
+          p_target_go_live: string | null
+          p_title: string
+        }
+        Returns: string
+      }
+      create_agent_with_source: {
+        Args: {
+          p_assigned_to: string
+          p_description: string
+          p_priority: AgentPriority
+          p_requester_department: string
+          p_requester_name: string
+          p_source_url: string
           p_target_go_live: string | null
           p_title: string
         }
@@ -451,6 +498,7 @@ export type Admin = Database['public']['Tables']['admins']['Row']
 export type Owner = Database['public']['Tables']['owners']['Row']
 export type AgentOwner = Database['public']['Tables']['agent_owners']['Row']
 export type AgentStageOwner = Database['public']['Tables']['agent_stage_owners']['Row']
+export type Department = Database['public']['Tables']['departments']['Row']
 
 export type OwnerAssignment = {
   owner_id: string

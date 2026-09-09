@@ -4,6 +4,7 @@ import type {
   AgentSubstep,
   AgentWithStages,
   Comment,
+  Department,
   Owner,
   OwnerAssignment,
   Stage,
@@ -96,6 +97,18 @@ function ownerAssignments(name: string): OwnerAssignment[] {
   return owner ? [{ owner_id: owner.id, owner }] : []
 }
 
+export const demoDepartments: Department[] = [
+  ...new Set(JIRA_INTAKE.map((row) => row.department)),
+]
+  .sort()
+  .map((name, index) => ({
+    id: `department-${index + 1}`,
+    name,
+    active: true,
+    sort_order: index + 1,
+    created_at: '2026-01-01T00:00:00Z',
+  }))
+
 function daysAgo(isoDate: string): number {
   const created = new Date(`${isoDate}T12:00:00`)
   return Math.max(0, Math.round((Date.now() - created.getTime()) / DAY_MS))
@@ -142,6 +155,7 @@ export const demoAgents: AgentWithStages[] = JIRA_INTAKE.map((row) => {
     requester_name: requesterName(row.assignee),
     requester_department: row.department,
     description: agentDescription(row),
+    source_url: `https://digitalrealty-cdo.atlassian.net/browse/${row.key}`,
     priority: 'medium' as AgentPriority,
     current_stage_id: 'stage-1',
     target_go_live: null,

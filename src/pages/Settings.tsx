@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useCatalog, useRealtimeTick } from '../hooks/useTracker'
 import { supabase } from '../lib/supabase'
-import type { Owner, Stage, Substep } from '../types/database'
+import type { Department, Owner, Stage, Substep } from '../types/database'
 
 function isFullName(name: string): boolean {
   return /^\S+(?:\s+\S+)+$/.test(name)
@@ -10,7 +10,7 @@ function isFullName(name: string): boolean {
 
 export function SettingsPage() {
   const tick = useRealtimeTick()
-  const { stages, substeps, owners, error: catalogError, reload } = useCatalog(tick)
+  const { stages, substeps, owners, departments, error: catalogError, reload } = useCatalog(tick)
   const [error, setError] = useState<string | null>(null)
 
   async function addOwner() {
@@ -24,6 +24,22 @@ export function SettingsPage() {
     const { error: insertError } = await supabase.rpc('create_owner', {
       p_full_name: normalized,
     })
+    if (insertError) setError(insertError.message)
+    else {
+      setError(null)
+      await reload()
+    }
+  }
+
+  async function addDepartment() {
+    const name = window.prompt('Department name')
+    if (!name?.trim()) return
+    const normalized = name.trim().replace(/\s+/g, ' ')
+    const nextOrder =
+      departments.reduce((max, department) => Math.max(max, department.sort_order), 0) + 1
+    const { error: insertError } = await supabase
+      .from('departments')
+      .insert({ name: normalized, sort_order: nextOrder })
     if (insertError) setError(insertError.message)
     else {
       setError(null)
@@ -50,11 +66,38 @@ export function SettingsPage() {
     }
   }
 
+  async function renameDepartment(department: Department) {
+    const name = window.prompt('Department name', department.name)
+    if (!name?.trim()) return
+    const normalized = name.trim().replace(/\s+/g, ' ')
+    const { error: updateError } = await supabase
+      .from('departments')
+      .update({ name: normalized })
+      .eq('id', department.id)
+    if (updateError) setError(updateError.message)
+    else {
+      setError(null)
+      await reload()
+    }
+  }
+
   async function setOwnerActive(owner: Owner, active: boolean) {
     const { error: updateError } = await supabase.rpc('set_owner_active', {
       p_owner_id: owner.id,
       p_active: active,
     })
+    if (updateError) setError(updateError.message)
+    else {
+      setError(null)
+      await reload()
+    }
+  }
+
+  async function setDepartmentActive(department: Department, active: boolean) {
+    const { error: updateError } = await supabase
+      .from('departments')
+      .update({ active })
+      .eq('id', department.id)
     if (updateError) setError(updateError.message)
     else {
       setError(null)
@@ -201,7 +244,7 @@ export function SettingsPage() {
           Settings
         </h2>
         <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">
-          Manage owners and the stage catalog used when a new request is created.
+          Manage owners, departments, and the stage catalog used when a new request is created.
         </p>
       </div>
       {error || catalogError ? (
@@ -252,6 +295,56 @@ export function SettingsPage() {
                 onClick={() => void setOwnerActive(owner, !owner.active)}
               >
                 {owner.active ? 'Deactivate' : 'Reactivate'}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold tracking-wide text-ink-400 uppercase">
+              Departments
+            </h3>
+            <p className="mt-1 text-xs text-ink-500 dark:text-ink-400">
+              Inactive departments remain on historical requests but disappear from forms.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void addDepartment()}
+            className="text-sm font-semibold text-brand-700 dark:text-brand-300"
+          >
+            Add department
+          </button>
+        </div>
+        <ul className="divide-y divide-ink-100 overflow-hidden rounded-2xl border border-ink-200 bg-white dark:divide-ink-800 dark:border-ink-800 dark:bg-ink-900">
+          {departments.map((department) => (
+            <li key={department.id} className="flex items-center gap-3 px-4 py-3">
+              <span className="flex-1 text-sm font-medium text-ink-900 dark:text-ink-50">
+                {department.name}
+              </span>
+              <span className="text-xs text-ink-400">
+                {department.active ? 'Active' : 'Inactive'}
+              </span>
+              <button
+                type="button"
+                className="text-xs text-ink-500 dark:text-ink-400"
+                onClick={() => void renameDepartment(department)}
+              >
+                Rename
+              </button>
+              <button
+                type="button"
+                className={
+                  department.active
+                    ? 'text-xs text-red-500 dark:text-red-400'
+                    : 'text-xs text-brand-700 dark:text-brand-300'
+                }
+                onClick={() => void setDepartmentActive(department, !department.active)}
+              >
+                {department.active ? 'Deactivate' : 'Reactivate'}
               </button>
             </li>
           ))}
