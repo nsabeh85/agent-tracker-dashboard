@@ -233,5 +233,30 @@ BEGIN
     EXECUTE 'REVOKE EXECUTE ON FUNCTION public.set_agent_stage_owners(uuid, uuid[]) FROM anon';
     EXECUTE 'GRANT EXECUTE ON FUNCTION public.set_agent_stage_owners(uuid, uuid[]) TO authenticated';
   END IF;
+
+  IF to_regprocedure('public.create_owner(text)') IS NOT NULL THEN
+    EXECUTE 'REVOKE EXECUTE ON FUNCTION public.create_owner(text) FROM anon';
+    EXECUTE 'GRANT EXECUTE ON FUNCTION public.create_owner(text) TO authenticated';
+  END IF;
+
+  IF to_regprocedure('public.rename_owner(uuid,text)') IS NOT NULL THEN
+    EXECUTE 'REVOKE EXECUTE ON FUNCTION public.rename_owner(uuid, text) FROM anon';
+    EXECUTE 'GRANT EXECUTE ON FUNCTION public.rename_owner(uuid, text) TO authenticated';
+  END IF;
+
+  IF to_regprocedure('public.set_owner_active(uuid,boolean)') IS NOT NULL THEN
+    EXECUTE 'REVOKE EXECUTE ON FUNCTION public.set_owner_active(uuid, boolean) FROM anon';
+    EXECUTE 'GRANT EXECUTE ON FUNCTION public.set_owner_active(uuid, boolean) TO authenticated';
+  END IF;
+
+  IF to_regprocedure('public.create_agent_with_source(text,text,text,text,public.agent_priority,date,text,text)') IS NOT NULL THEN
+    EXECUTE 'REVOKE EXECUTE ON FUNCTION public.create_agent_with_source(text, text, text, text, public.agent_priority, date, text, text) FROM anon';
+    EXECUTE 'GRANT EXECUTE ON FUNCTION public.create_agent_with_source(text, text, text, text, public.agent_priority, date, text, text) TO authenticated';
+  END IF;
+
+  IF to_regprocedure('public.complete_stage_and_advance(uuid,uuid)') IS NOT NULL THEN
+    EXECUTE 'REVOKE EXECUTE ON FUNCTION public.complete_stage_and_advance(uuid, uuid) FROM anon';
+    EXECUTE 'GRANT EXECUTE ON FUNCTION public.complete_stage_and_advance(uuid, uuid) TO authenticated';
+  END IF;
 END;
 $$;

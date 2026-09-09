@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   addDays,
+  allSubstepsComplete,
+  canAutoAdvance,
+  stageItemsComplete,
   createdThisMonth,
   daysUntil,
   dueLabel,
@@ -9,8 +12,11 @@ import {
   isInFlight,
   isPastTargetGoLive,
   isStageBehind,
+  needsGoLiveDate,
+  nextStageAfter,
   parseISODate,
 } from './schedule'
+import { isMissingFunctionError } from './supabase'
 import type { Stage } from '../types/database'
 
 const stages: Stage[] = [
@@ -147,5 +153,95 @@ describe('date presentation', () => {
     expect(initials('Nabih')).toBe('N')
     expect(initials('Priya Raman')).toBe('PR')
     expect(initials('  ')).toBe('')
+  })
+})
+
+describe('stage auto-advance', () => {
+  const rows = stages.map((stage) => ({ stage }))
+
+  it('finds the next stage in catalog order regardless of input order', () => {
+    expect(nextStageAfter(rows, rows[1])?.stage.id).toBe('s3')
+    expect(nextStageAfter([...rows].reverse(), rows[1])?.stage.id).toBe('s3')
+  })
+
+  it('returns null at the end of the workflow', () => {
+    expect(nextStageAfter(rows, rows[4])).toBeNull()
+  })
+
+  it('advances only the stage the tracker points at', () => {
+    const done = [{ status: 'complete' as const }]
+    expect(canAutoAdvance({ status: 'in_progress', stage_id: 's2' }, 's2', done)).toBe(true)
+    expect(canAutoAdvance({ status: 'in_progress', stage_id: 's4' }, 's2', done)).toBe(false)
+  })
+
+  it('refuses to advance a stage that is already complete', () => {
+    expect(canAutoAdvance({ status: 'complete', stage_id: 's2' }, 's2')).toBe(false)
+  })
+
+  it('treats a stage as finished only when every sub-step is complete', () => {
+    expect(allSubstepsComplete([{ status: 'complete' }, { status: 'complete' }])).toBe(true)
+    expect(allSubstepsComplete([{ status: 'complete' }, { status: 'in_progress' }])).toBe(false)
+    expect(allSubstepsComplete([{ status: 'blocked' }])).toBe(false)
+  })
+
+  it('never finishes a stage that has no sub-steps by ticking', () => {
+    expect(allSubstepsComplete([])).toBe(false)
+  })
+
+  it('does not auto-advance a stage that has no items', () => {
+    expect(stageItemsComplete([])).toBe(true)
+    expect(canAutoAdvance({ status: 'in_progress', stage_id: 's2' }, 's2', [])).toBe(false)
+    expect(allSubstepsComplete([])).toBe(false)
+  })
+
+  it('requires a target go-live date only when the next stage is Testing', () => {
+    expect(needsGoLiveDate('Testing', null)).toBe(true)
+    expect(needsGoLiveDate('Testing', '2026-10-01')).toBe(false)
+    expect(needsGoLiveDate('Building', null)).toBe(false)
+    expect(needsGoLiveDate('Live', null)).toBe(false)
+  })
+
+  it('does not auto-advance while any item is still open', () => {
+    expect(
+      canAutoAdvance({ status: 'in_progress', stage_id: 's2' }, 's2', [
+        { status: 'complete' },
+        { status: 'not_started' },
+      ]),
+    ).toBe(false)
+    expect(
+      canAutoAdvance({ status: 'in_progress', stage_id: 's2' }, 's2', [
+        { status: 'complete' },
+        { status: 'complete' },
+      ]),
+    ).toBe(true)
+  })
+})
+
+describe('missing RPC detection', () => {
+  it('recognizes PostgREST and Postgres missing-function errors', () => {
+    expect(isMissingFunctionError({ code: 'PGRST202', message: 'Could not find the function' })).toBe(
+      true,
+    )
+    expect(isMissingFunctionError({ code: '42883', message: 'function does not exist' })).toBe(true)
+    expect(
+      isMissingFunctionError({
+        message: 'Could not find the function public.complete_stage_and_advance',
+      }),
+    ).toBe(true)
+  })
+
+  it('does not treat business-rule failures as a missing function', () => {
+    expect(
+      isMissingFunctionError({ message: 'Every item in the current stage must be complete' }),
+    ).toBe(false)
+    expect(
+      isMissingFunctionError({ message: 'A stage with no items cannot auto-advance' }),
+    ).toBe(false)
+    expect(
+      isMissingFunctionError({
+        message: 'Set a target go-live date before a request can enter Testing.',
+      }),
+    ).toBe(false)
+    expect(isMissingFunctionError(null)).toBe(false)
   })
 })
