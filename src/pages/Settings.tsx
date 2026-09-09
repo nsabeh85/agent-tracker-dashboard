@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useCatalog, useRealtimeTick } from '../hooks/useTracker'
+import { isDigitalRealtyEmail, useAuth } from '../lib/auth'
 import { supabase } from '../lib/supabase'
 import type { Department, Owner, Stage, Substep } from '../types/database'
 
@@ -11,7 +12,46 @@ function isFullName(name: string): boolean {
 export function SettingsPage() {
   const tick = useRealtimeTick()
   const { stages, substeps, owners, departments, error: catalogError, reload } = useCatalog(tick)
+  const { admin, admins, reloadAdmins } = useAuth()
   const [error, setError] = useState<string | null>(null)
+
+  async function addAdmin() {
+    const email = window.prompt('Admin @digitalrealty.com email')
+    if (!email?.trim()) return
+    const normalizedEmail = email.trim().toLowerCase()
+    if (!isDigitalRealtyEmail(normalizedEmail)) {
+      setError('Administrators must use an @digitalrealty.com email address.')
+      return
+    }
+    const displayName = window.prompt('Admin full name (first and last)')
+    if (!displayName?.trim() || !/^\S+(?:\s+\S+)+$/.test(displayName.trim())) {
+      setError('Enter both a first and last name.')
+      return
+    }
+    const { error: adminError } = await supabase.from('admins').upsert({
+      email: normalizedEmail,
+      display_name: displayName.trim().replace(/\s+/g, ' '),
+    })
+    if (adminError) setError(adminError.message)
+    else {
+      setError(null)
+      await reloadAdmins()
+    }
+  }
+
+  async function removeAdmin(email: string) {
+    if (email.toLowerCase() === admin?.email.toLowerCase()) {
+      setError('You cannot remove your own administrator access.')
+      return
+    }
+    if (!window.confirm(`Remove administrator access for ${email}?`)) return
+    const { error: adminError } = await supabase.from('admins').delete().eq('email', email)
+    if (adminError) setError(adminError.message)
+    else {
+      setError(null)
+      await reloadAdmins()
+    }
+  }
 
   async function addOwner() {
     const fullName = window.prompt('Owner full name (first and last)')
@@ -244,7 +284,7 @@ export function SettingsPage() {
           Settings
         </h2>
         <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">
-          Manage owners, departments, and the stage catalog used when a new request is created.
+          Manage owners, departments, administrators, and the stage catalog used when a new request is created.
         </p>
       </div>
       {error || catalogError ? (
@@ -345,6 +385,46 @@ export function SettingsPage() {
                 onClick={() => void setDepartmentActive(department, !department.active)}
               >
                 {department.active ? 'Deactivate' : 'Reactivate'}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-ink-400 text-sm font-semibold tracking-wide uppercase">
+              Administrators
+            </h3>
+            <p className="text-ink-500 dark:text-ink-400 mt-1 text-xs">
+              Administrators can edit all tracker data and manage this list.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void addAdmin()}
+            className="text-brand-700 dark:text-brand-300 text-sm font-semibold"
+          >
+            Add administrator
+          </button>
+        </div>
+        <ul className="divide-ink-100 border-ink-200 dark:divide-ink-800 dark:border-ink-800 dark:bg-ink-900 divide-y overflow-hidden rounded-2xl border bg-white">
+          {admins.map((entry) => (
+            <li key={entry.email} className="flex items-center gap-3 px-4 py-3">
+              <span className="min-w-0 flex-1">
+                <span className="text-ink-900 dark:text-ink-50 block text-sm font-medium">
+                  {entry.display_name}
+                </span>
+                <span className="text-ink-400 block truncate text-xs">{entry.email}</span>
+              </span>
+              <button
+                type="button"
+                disabled={entry.email.toLowerCase() === admin?.email.toLowerCase()}
+                onClick={() => void removeAdmin(entry.email)}
+                className="text-xs text-red-500 disabled:cursor-not-allowed disabled:opacity-35 dark:text-red-400"
+              >
+                Remove
               </button>
             </li>
           ))}

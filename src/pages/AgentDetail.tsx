@@ -10,6 +10,7 @@ import {
   useCatalog,
   useRealtimeTick,
 } from '../hooks/useTracker'
+import { useAuth } from '../lib/auth'
 import {
   allSubstepsComplete,
   canAutoAdvance,
@@ -28,6 +29,7 @@ import {
 import { descriptionWithoutSource, isHttpsUrl, sourceLabel } from '../lib/sourceLink'
 import { isMissingFunctionError, supabase } from '../lib/supabase'
 import type {
+  Admin,
   AgentPriority,
   AgentStage,
   AgentStageWithOwners,
@@ -54,6 +56,7 @@ const STATUS_PILL: Record<ProgressStatus, string> = {
 
 export function AgentDetailPage() {
   const { id } = useParams()
+  const { admin } = useAuth()
   const tick = useRealtimeTick()
   const { stages, owners: ownerCatalog, departments } = useCatalog(tick)
   const owners = ownerCatalog.filter((owner) => owner.active)
@@ -164,13 +167,15 @@ export function AgentDetailPage() {
         />
       </section>
 
-      <AgentActions
-        agent={agent}
-        rows={rows}
-        owners={owners}
-        departments={departments}
-        onSaved={reload}
-      />
+      {admin ? (
+        <AgentActions
+          agent={agent}
+          rows={rows}
+          owners={owners}
+          departments={departments}
+          onSaved={reload}
+        />
+      ) : null}
 
       <section className="space-y-3">
         <h3 className="text-ink-400 px-1 text-xs font-bold tracking-[0.12em] uppercase">
@@ -181,6 +186,7 @@ export function AgentDetailPage() {
             key={row.id}
             row={row}
             position={index + 1}
+            canEdit={Boolean(admin)}
             owners={owners}
             agentId={agent.id}
             currentStageId={agent.current_stage_id}
@@ -200,6 +206,7 @@ export function AgentDetailPage() {
         agentId={agent.id}
         rows={rows}
         comments={comments}
+        author={admin}
         onSaved={reload}
       />
     </div>
@@ -223,6 +230,7 @@ function Chip({ label, value }: { label: string; value: string }) {
 function StageCard({
   row,
   position,
+  canEdit,
   owners,
   agentId,
   currentStageId,
@@ -235,6 +243,7 @@ function StageCard({
 }: {
   row: AgentStageWithOwners & { stage: Stage }
   position: number
+  canEdit: boolean
   owners: Owner[]
   agentId: string
   currentStageId: string
@@ -414,6 +423,7 @@ function StageCard({
               <input
                 type="number"
                 min={0}
+                disabled={!canEdit}
                 defaultValue={row.expected_duration_days}
                 className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
                 onBlur={(e) => {
@@ -427,6 +437,7 @@ function StageCard({
             <Field label="Actual start">
               <input
                 type="date"
+                disabled={!canEdit}
                 defaultValue={row.actual_start ?? ''}
                 className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
                 onBlur={(e) => {
@@ -438,6 +449,7 @@ function StageCard({
             <Field label="Actual end">
               <input
                 type="date"
+                disabled={!canEdit}
                 defaultValue={row.actual_end ?? ''}
                 className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
                 onBlur={(e) => {
@@ -449,6 +461,7 @@ function StageCard({
             <Field label="Status">
               <select
                 value={row.status}
+                disabled={!canEdit}
                 className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
                 onChange={(e) => {
                   const status = e.target.value as ProgressStatus
@@ -479,6 +492,7 @@ function StageCard({
                 owners={owners}
                 selectedIds={row.agent_stage_owners.map((assignment) => assignment.owner_id)}
                 onChange={(ownerIds) => void updateStageOwners(ownerIds)}
+                disabled={!canEdit}
               />
             </FieldGroup>
           </div>
@@ -499,6 +513,7 @@ function StageCard({
                 >
                   <button
                     type="button"
+                    disabled={!canEdit}
                     onClick={() => void toggleSubstep(step)}
                     aria-pressed={stepDone}
                     aria-label={`Mark ${step.name} ${stepDone ? 'not done' : 'done'}`}
@@ -873,54 +888,32 @@ function EditField({
   )
 }
 
-const COMMENT_NAME_KEY = 'agent-tracker-comment-name'
-const COMMENT_EMAIL_KEY = 'agent-tracker-comment-email'
-
-function readStored(key: string): string {
-  try {
-    return window.localStorage.getItem(key) ?? ''
-  } catch {
-    return ''
-  }
-}
-
-function writeStored(key: string, value: string) {
-  try {
-    window.localStorage.setItem(key, value)
-  } catch {
-    // Storage can be blocked.
-  }
-}
-
 function CommentThread({
   agentId,
   rows,
   comments,
+  author,
   onSaved,
 }: {
   agentId: string
   rows: Array<AgentStage & { stage: Stage }>
   comments: Comment[]
+  author: Admin | null
   onSaved: () => Promise<void>
 }) {
   const [body, setBody] = useState('')
-  const [authorName, setAuthorName] = useState(() => readStored(COMMENT_NAME_KEY))
-  const [authorEmail, setAuthorEmail] = useState(() => readStored(COMMENT_EMAIL_KEY))
   const [stageId, setStageId] = useState('')
   const [saving, setSaving] = useState(false)
 
   async function submit(e: FormEvent) {
     e.preventDefault()
-    const name = authorName.trim()
-    if (!name || !body.trim()) return
-    writeStored(COMMENT_NAME_KEY, name)
-    writeStored(COMMENT_EMAIL_KEY, authorEmail.trim())
+    if (!author || !body.trim()) return
     setSaving(true)
     const { error } = await supabase.from('comments').insert({
       agent_id: agentId,
       agent_stage_id: stageId || null,
-      author_email: authorEmail.trim() || 'anonymous',
-      author_name: name,
+      author_email: author.email,
+      author_name: author.display_name,
       body: body.trim(),
     })
     setSaving(false)
@@ -940,27 +933,11 @@ function CommentThread({
         Comments
       </h3>
 
-      <form
-        onSubmit={(e) => void submit(e)}
-        className="border-ink-200/80 dark:border-ink-800 dark:bg-ink-900 space-y-3 rounded-2xl border bg-white p-4 shadow-sm"
-      >
-        <div className="grid gap-2 sm:grid-cols-2">
-          <input
-            type="text"
-            required
-            value={authorName}
-            onChange={(e) => setAuthorName(e.target.value)}
-            placeholder="Your name"
-            className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:text-ink-100 w-full rounded-xl border px-3 py-2 text-sm outline-none"
-          />
-          <input
-            type="email"
-            value={authorEmail}
-            onChange={(e) => setAuthorEmail(e.target.value)}
-            placeholder="Email (optional)"
-            className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:text-ink-100 w-full rounded-xl border px-3 py-2 text-sm outline-none"
-          />
-        </div>
+      {author ? (
+        <form
+          onSubmit={(e) => void submit(e)}
+          className="border-ink-200/80 dark:border-ink-800 dark:bg-ink-900 space-y-3 rounded-2xl border bg-white p-4 shadow-sm"
+        >
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
@@ -983,13 +960,16 @@ function CommentThread({
           </select>
           <button
             type="submit"
-            disabled={saving || !body.trim() || !authorName.trim()}
+            disabled={saving || !body.trim()}
             className="bg-ink-900 hover:bg-ink-800 dark:bg-brand-600 dark:hover:bg-brand-500 ml-auto rounded-full px-4 py-1.5 text-sm font-semibold text-white transition disabled:opacity-40"
           >
             {saving ? 'Posting…' : 'Post update'}
           </button>
         </div>
-      </form>
+        </form>
+      ) : (
+        <p className="text-ink-400 px-1 text-sm">Comments are read-only.</p>
+      )}
 
       <ul className="space-y-2">
         {comments.map((comment) => (
