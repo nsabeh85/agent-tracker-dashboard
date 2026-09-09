@@ -21,10 +21,9 @@ export function SettingsPage() {
       setError('Enter both a first and last name.')
       return
     }
-    const nextOrder = owners.reduce((max, owner) => Math.max(max, owner.sort_order), 0) + 1
-    const { error: insertError } = await supabase
-      .from('owners')
-      .insert({ full_name: normalized, sort_order: nextOrder })
+    const { error: insertError } = await supabase.rpc('create_owner', {
+      p_full_name: normalized,
+    })
     if (insertError) setError(insertError.message)
     else {
       setError(null)
@@ -40,10 +39,10 @@ export function SettingsPage() {
       setError('Enter both a first and last name.')
       return
     }
-    const { error: updateError } = await supabase
-      .from('owners')
-      .update({ full_name: normalized })
-      .eq('id', owner.id)
+    const { error: updateError } = await supabase.rpc('rename_owner', {
+      p_owner_id: owner.id,
+      p_full_name: normalized,
+    })
     if (updateError) setError(updateError.message)
     else {
       setError(null)
@@ -52,10 +51,10 @@ export function SettingsPage() {
   }
 
   async function setOwnerActive(owner: Owner, active: boolean) {
-    const { error: updateError } = await supabase
-      .from('owners')
-      .update({ active })
-      .eq('id', owner.id)
+    const { error: updateError } = await supabase.rpc('set_owner_active', {
+      p_owner_id: owner.id,
+      p_active: active,
+    })
     if (updateError) setError(updateError.message)
     else {
       setError(null)

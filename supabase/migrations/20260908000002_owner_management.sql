@@ -56,16 +56,14 @@ ON CONFLICT DO NOTHING;
 INSERT INTO public.agent_stage_owners (agent_stage_id, owner_id)
 SELECT agent_stage.id, agent_owner.owner_id
 FROM public.agent_owners AS agent_owner
-JOIN public.agents AS agent ON agent.id = agent_owner.agent_id
 JOIN public.agent_stages AS agent_stage
-  ON agent_stage.agent_id = agent.id
- AND agent_stage.stage_id = agent.current_stage_id
+  ON agent_stage.agent_id = agent_owner.agent_id
 ON CONFLICT DO NOTHING;
 
 CREATE OR REPLACE FUNCTION public.refresh_agent_owner_summaries()
 RETURNS trigger
 LANGUAGE plpgsql
-SECURITY INVOKER
+SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
@@ -96,7 +94,7 @@ CREATE OR REPLACE FUNCTION public.set_agent_owners(
 )
 RETURNS void
 LANGUAGE plpgsql
-SECURITY INVOKER
+SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
@@ -145,7 +143,7 @@ CREATE OR REPLACE FUNCTION public.set_agent_stage_owners(
 )
 RETURNS void
 LANGUAGE plpgsql
-SECURITY INVOKER
+SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
@@ -187,7 +185,7 @@ CREATE OR REPLACE FUNCTION public.create_agent_with_owners(
 )
 RETURNS uuid
 LANGUAGE plpgsql
-SECURITY INVOKER
+SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
@@ -240,44 +238,98 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION public.create_owner(p_full_name text)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_name text;
+  v_id uuid;
+BEGIN
+  v_name := btrim(regexp_replace(COALESCE(p_full_name, ''), '\s+', ' ', 'g'));
+  IF v_name !~ '^[^[:space:]]+[[:space:]]+[^[:space:]]+' THEN
+    RAISE EXCEPTION 'Enter both a first and last name';
+  END IF;
+
+  INSERT INTO public.owners (full_name, sort_order)
+  SELECT v_name, COALESCE(max(sort_order), 0) + 1
+  FROM public.owners
+  RETURNING id INTO v_id;
+
+  RETURN v_id;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.rename_owner(p_owner_id uuid, p_full_name text)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_name text;
+BEGIN
+  v_name := btrim(regexp_replace(COALESCE(p_full_name, ''), '\s+', ' ', 'g'));
+  IF v_name !~ '^[^[:space:]]+[[:space:]]+[^[:space:]]+' THEN
+    RAISE EXCEPTION 'Enter both a first and last name';
+  END IF;
+
+  UPDATE public.owners
+  SET full_name = v_name
+  WHERE id = p_owner_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Owner not found';
+  END IF;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.set_owner_active(p_owner_id uuid, p_active boolean)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  UPDATE public.owners
+  SET active = p_active
+  WHERE id = p_owner_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Owner not found';
+  END IF;
+END;
+$$;
+
 ALTER TABLE public.owners ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.agent_owners ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.agent_stage_owners ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY owners_select ON public.owners
   FOR SELECT TO anon, authenticated USING (true);
-CREATE POLICY owners_insert ON public.owners
-  FOR INSERT TO anon, authenticated WITH CHECK (true);
-CREATE POLICY owners_update ON public.owners
-  FOR UPDATE TO anon, authenticated USING (true) WITH CHECK (true);
 
 CREATE POLICY agent_owners_select ON public.agent_owners
   FOR SELECT TO anon, authenticated USING (true);
-CREATE POLICY agent_owners_insert ON public.agent_owners
-  FOR INSERT TO anon, authenticated WITH CHECK (true);
-CREATE POLICY agent_owners_update ON public.agent_owners
-  FOR UPDATE TO anon, authenticated USING (true) WITH CHECK (true);
-CREATE POLICY agent_owners_delete ON public.agent_owners
-  FOR DELETE TO anon, authenticated USING (true);
 
 CREATE POLICY agent_stage_owners_select ON public.agent_stage_owners
   FOR SELECT TO anon, authenticated USING (true);
-CREATE POLICY agent_stage_owners_insert ON public.agent_stage_owners
-  FOR INSERT TO anon, authenticated WITH CHECK (true);
-CREATE POLICY agent_stage_owners_update ON public.agent_stage_owners
-  FOR UPDATE TO anon, authenticated USING (true) WITH CHECK (true);
-CREATE POLICY agent_stage_owners_delete ON public.agent_stage_owners
-  FOR DELETE TO anon, authenticated USING (true);
 
-GRANT SELECT, INSERT, UPDATE ON public.owners TO anon, authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE
-  ON public.agent_owners, public.agent_stage_owners
+GRANT SELECT ON public.owners, public.agent_owners, public.agent_stage_owners
   TO anon, authenticated;
+REVOKE INSERT, UPDATE, DELETE ON public.owners FROM anon, authenticated;
+REVOKE INSERT, UPDATE, DELETE ON public.agent_owners FROM anon, authenticated;
+REVOKE INSERT, UPDATE, DELETE ON public.agent_stage_owners FROM anon, authenticated;
+
 GRANT EXECUTE ON FUNCTION public.set_agent_owners(uuid, uuid[]) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.set_agent_stage_owners(uuid, uuid[]) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.create_agent_with_owners(
   text, text, text, text, public.agent_priority, date, uuid[]
 ) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.create_owner(text) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rename_owner(uuid, text) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.set_owner_active(uuid, boolean) TO anon, authenticated;
 
 DO $$
 BEGIN

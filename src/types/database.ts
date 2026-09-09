@@ -409,6 +409,26 @@ export type Database = {
         }
         Returns: undefined
       }
+      create_owner: {
+        Args: {
+          p_full_name: string
+        }
+        Returns: string
+      }
+      rename_owner: {
+        Args: {
+          p_full_name: string
+          p_owner_id: string
+        }
+        Returns: undefined
+      }
+      set_owner_active: {
+        Args: {
+          p_active: boolean
+          p_owner_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       agent_priority: AgentPriority
