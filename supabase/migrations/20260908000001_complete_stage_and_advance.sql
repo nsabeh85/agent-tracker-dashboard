@@ -16,6 +16,7 @@ DECLARE
   v_stage_sort_order int;
   v_next_agent_stage_id uuid;
   v_next_stage_id uuid;
+  v_next_stage_name text;
 BEGIN
   SELECT current_stage_id
   INTO v_current_stage_id
@@ -59,8 +60,8 @@ BEGIN
     RAISE EXCEPTION 'Every item in the current stage must be complete';
   END IF;
 
-  SELECT next_agent_stage.id, next_agent_stage.stage_id
-  INTO v_next_agent_stage_id, v_next_stage_id
+  SELECT next_agent_stage.id, next_agent_stage.stage_id, next_stage.name
+  INTO v_next_agent_stage_id, v_next_stage_id, v_next_stage_name
   FROM public.agent_stages AS next_agent_stage
   JOIN public.stages AS next_stage ON next_stage.id = next_agent_stage.stage_id
   WHERE next_agent_stage.agent_id = p_agent_id
@@ -68,6 +69,16 @@ BEGIN
   ORDER BY next_stage.sort_order
   LIMIT 1
   FOR UPDATE OF next_agent_stage;
+
+  IF v_next_stage_name = 'Testing' THEN
+    IF (
+      SELECT target_go_live
+      FROM public.agents
+      WHERE id = p_agent_id
+    ) IS NULL THEN
+      RAISE EXCEPTION 'Set a target go-live date before a request can enter Testing.';
+    END IF;
+  END IF;
 
   UPDATE public.agent_stages
   SET status = 'complete',

@@ -13,6 +13,8 @@ import {
   allSubstepsComplete,
   canAutoAdvance,
   nextStageAfter,
+  needsGoLiveDate,
+  GO_LIVE_BEFORE_TESTING,
   stageItemsComplete,
   dueLabel,
   formatDate,
@@ -156,6 +158,7 @@ export function AgentDetailPage() {
             position={index + 1}
             agentId={agent.id}
             currentStageId={agent.current_stage_id}
+            targetGoLive={agent.target_go_live}
             stageRows={rows}
             substeps={substeps.filter((s) => s.agent_stage_id === row.id)}
             open={openStageId === row.id}
@@ -191,6 +194,7 @@ function StageCard({
   position,
   agentId,
   currentStageId,
+  targetGoLive,
   stageRows,
   substeps,
   open,
@@ -201,6 +205,7 @@ function StageCard({
   position: number
   agentId: string
   currentStageId: string
+  targetGoLive: string | null
   stageRows: Array<AgentStage & { stage: Stage }>
   substeps: AgentSubstep[]
   open: boolean
@@ -221,6 +226,11 @@ function StageCard({
   /** Completes this current stage and starts the next one, preferring the RPC. */
   async function completeAndAdvance(itemStatuses = substeps) {
     if (!canAutoAdvance(row, currentStageId, itemStatuses)) return
+    const next = nextStageAfter(stageRows, row)
+    if (needsGoLiveDate(next?.stage.name, targetGoLive)) {
+      window.alert(GO_LIVE_BEFORE_TESTING)
+      return
+    }
     const { error } = await supabase.rpc('complete_stage_and_advance', {
       p_agent_id: agentId,
       p_agent_stage_id: row.id,
@@ -234,7 +244,6 @@ function StageCard({
       return
     }
 
-    const next = nextStageAfter(stageRows, row)
     const { error: completeError } = await supabase
       .from('agent_stages')
       .update({ status: 'complete', actual_end: row.actual_end ?? todayISO() })
@@ -502,6 +511,11 @@ function AgentActions({
     const next = rows[nextIndex]
     const current = rows[index]
     if (!next) return
+
+    if (nextIndex > index && needsGoLiveDate(next.stage.name, agent.target_go_live)) {
+      window.alert(GO_LIVE_BEFORE_TESTING)
+      return
+    }
 
     if (current && nextIndex > index) {
       await supabase

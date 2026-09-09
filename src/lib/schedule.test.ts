@@ -12,6 +12,7 @@ import {
   isInFlight,
   isPastTargetGoLive,
   isStageBehind,
+  needsGoLiveDate,
   nextStageAfter,
   parseISODate,
 } from './schedule'
@@ -191,6 +192,13 @@ describe('stage auto-advance', () => {
     expect(canAutoAdvance({ status: 'in_progress', stage_id: 's2' }, 's2', [])).toBe(true)
   })
 
+  it('requires a target go-live date only when the next stage is Testing', () => {
+    expect(needsGoLiveDate('Testing', null)).toBe(true)
+    expect(needsGoLiveDate('Testing', '2026-10-01')).toBe(false)
+    expect(needsGoLiveDate('Building', null)).toBe(false)
+    expect(needsGoLiveDate('Live', null)).toBe(false)
+  })
+
   it('does not auto-advance while any item is still open', () => {
     expect(
       canAutoAdvance({ status: 'in_progress', stage_id: 's2' }, 's2', [
@@ -223,6 +231,11 @@ describe('missing RPC detection', () => {
   it('does not treat business-rule failures as a missing function', () => {
     expect(
       isMissingFunctionError({ message: 'Every item in the current stage must be complete' }),
+    ).toBe(false)
+    expect(
+      isMissingFunctionError({
+        message: 'Set a target go-live date before a request can enter Testing.',
+      }),
     ).toBe(false)
     expect(isMissingFunctionError(null)).toBe(false)
   })

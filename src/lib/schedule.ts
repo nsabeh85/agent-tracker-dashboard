@@ -140,6 +140,17 @@ export function nextStageAfter<T extends { stage: Stage }>(rows: T[], row: T): T
   return ordered[index + 1] ?? null
 }
 
+export const GO_LIVE_BEFORE_TESTING =
+  'Set a target go-live date before a request can enter Testing.'
+
+/** The only extra required field: a go-live date before Testing. */
+export function needsGoLiveDate(
+  nextStageName: string | undefined,
+  targetGoLive: string | null | undefined,
+): boolean {
+  return nextStageName === 'Testing' && !targetGoLive
+}
+
 /** True when every item is complete, including a stage that has no items. */
 export function stageItemsComplete(substeps: Pick<AgentSubstep, 'status'>[]): boolean {
   return substeps.every((step) => step.status === 'complete')
