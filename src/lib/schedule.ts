@@ -158,8 +158,8 @@ export function stageItemsComplete(substeps: Pick<AgentSubstep, 'status'>[]): bo
 
 /**
  * Completing a stage moves the tracker only when that stage is the one the
- * tracker already points at, every item on it is complete, and it is not
- * already complete, so a repeated completion cannot advance twice.
+ * tracker already points at, it has items, every item is complete, and it is
+ * not already complete, so a repeated completion cannot advance twice.
  */
 export function canAutoAdvance(
   row: Pick<AgentStage, 'status' | 'stage_id'>,
@@ -169,7 +169,7 @@ export function canAutoAdvance(
   return (
     row.stage_id === currentStageId &&
     row.status !== 'complete' &&
-    stageItemsComplete(substeps)
+    allSubstepsComplete(substeps)
   )
 }
 

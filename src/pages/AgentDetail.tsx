@@ -15,7 +15,6 @@ import {
   nextStageAfter,
   needsGoLiveDate,
   GO_LIVE_BEFORE_TESTING,
-  stageItemsComplete,
   dueLabel,
   formatDate,
   formatDateTime,
@@ -411,8 +410,12 @@ function StageCard({
                     void updateStage({ status })
                     return
                   }
-                  if (!stageItemsComplete(substeps)) {
-                    window.alert('Mark every item in this stage complete before the tracker can move on.')
+                  if (!allSubstepsComplete(substeps)) {
+                    window.alert(
+                      substeps.length === 0
+                        ? 'A stage with no items cannot auto-advance. Use Advance stage to move on.'
+                        : 'Mark every item in this stage complete before the tracker can move on.',
+                    )
                     return
                   }
                   if (row.stage_id === currentStageId) void completeAndAdvance()

@@ -169,8 +169,9 @@ describe('stage auto-advance', () => {
   })
 
   it('advances only the stage the tracker points at', () => {
-    expect(canAutoAdvance({ status: 'in_progress', stage_id: 's2' }, 's2')).toBe(true)
-    expect(canAutoAdvance({ status: 'in_progress', stage_id: 's4' }, 's2')).toBe(false)
+    const done = [{ status: 'complete' as const }]
+    expect(canAutoAdvance({ status: 'in_progress', stage_id: 's2' }, 's2', done)).toBe(true)
+    expect(canAutoAdvance({ status: 'in_progress', stage_id: 's4' }, 's2', done)).toBe(false)
   })
 
   it('refuses to advance a stage that is already complete', () => {
@@ -187,9 +188,10 @@ describe('stage auto-advance', () => {
     expect(allSubstepsComplete([])).toBe(false)
   })
 
-  it('treats a stage with no items as ready to advance', () => {
+  it('does not auto-advance a stage that has no items', () => {
     expect(stageItemsComplete([])).toBe(true)
-    expect(canAutoAdvance({ status: 'in_progress', stage_id: 's2' }, 's2', [])).toBe(true)
+    expect(canAutoAdvance({ status: 'in_progress', stage_id: 's2' }, 's2', [])).toBe(false)
+    expect(allSubstepsComplete([])).toBe(false)
   })
 
   it('requires a target go-live date only when the next stage is Testing', () => {
@@ -231,6 +233,9 @@ describe('missing RPC detection', () => {
   it('does not treat business-rule failures as a missing function', () => {
     expect(
       isMissingFunctionError({ message: 'Every item in the current stage must be complete' }),
+    ).toBe(false)
+    expect(
+      isMissingFunctionError({ message: 'A stage with no items cannot auto-advance' }),
     ).toBe(false)
     expect(
       isMissingFunctionError({

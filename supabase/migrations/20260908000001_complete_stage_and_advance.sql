@@ -51,6 +51,14 @@ BEGIN
   WHERE agent_stage_id = p_agent_stage_id
   FOR UPDATE;
 
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.agent_substeps
+    WHERE agent_stage_id = p_agent_stage_id
+  ) THEN
+    RAISE EXCEPTION 'A stage with no items cannot auto-advance';
+  END IF;
+
   IF EXISTS (
     SELECT 1
     FROM public.agent_substeps
