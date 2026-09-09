@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ProgressBar } from '../components/ProgressBar'
 import { ScheduleMarker } from '../components/ScheduleMarker'
 import { CheckIcon } from '../components/StageIcon'
+import { OwnerMultiSelect } from '../components/OwnerMultiSelect'
 import {
   orderedAgentStages,
   useAgentDetail,
@@ -27,13 +28,16 @@ import {
 import { descriptionWithoutSource, isHttpsUrl, sourceLabel } from '../lib/sourceLink'
 import { isMissingFunctionError, supabase } from '../lib/supabase'
 import type {
-  Agent,
   AgentPriority,
   AgentStage,
+  AgentStageWithOwners,
   AgentStatus,
   AgentSubstep,
+  AgentWithStages,
   Comment,
   Department,
+  Owner,
+  OwnerAssignment,
   ProgressStatus,
   Stage,
 } from '../types/database'
@@ -51,7 +55,8 @@ const STATUS_PILL: Record<ProgressStatus, string> = {
 export function AgentDetailPage() {
   const { id } = useParams()
   const tick = useRealtimeTick()
-  const { stages, departments } = useCatalog(tick)
+  const { stages, owners: ownerCatalog, departments } = useCatalog(tick)
+  const owners = ownerCatalog.filter((owner) => owner.active)
   const { agent, substeps, comments, loading, error, reload } = useAgentDetail(id, tick)
   const [openStageId, setOpenStageId] = useState<string | null>(null)
   const [stageToggleReady, setStageToggleReady] = useState(false)
@@ -129,7 +134,7 @@ export function AgentDetailPage() {
             <Chip label="Requester" value={agent.requester_name} />
             <Chip label="Department" value={agent.requester_department} />
             <Chip label="Priority" value={agent.priority} />
-            <Chip label="Owner" value={agent.assigned_to} />
+            <Chip label="Owners" value={ownerNames(agent.agent_owners, agent.assigned_to)} />
             <Chip label="Stage" value={current?.name ?? '—'} />
             <Chip label="Status" value={statusLabel(agent.status)} />
           </div>
@@ -162,6 +167,7 @@ export function AgentDetailPage() {
       <AgentActions
         agent={agent}
         rows={rows}
+        owners={owners}
         departments={departments}
         onSaved={reload}
       />
@@ -175,6 +181,7 @@ export function AgentDetailPage() {
             key={row.id}
             row={row}
             position={index + 1}
+            owners={owners}
             agentId={agent.id}
             currentStageId={agent.current_stage_id}
             targetGoLive={agent.target_go_live}
@@ -199,6 +206,11 @@ export function AgentDetailPage() {
   )
 }
 
+function ownerNames(assignments: OwnerAssignment[], fallback = 'Unassigned'): string {
+  const names = assignments.map((assignment) => assignment.owner.full_name)
+  return names.length ? names.join(', ') : fallback
+}
+
 function Chip({ label, value }: { label: string; value: string }) {
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 ring-1 ring-white/15">
@@ -211,6 +223,7 @@ function Chip({ label, value }: { label: string; value: string }) {
 function StageCard({
   row,
   position,
+  owners,
   agentId,
   currentStageId,
   targetGoLive,
@@ -220,8 +233,9 @@ function StageCard({
   onToggle,
   onSaved,
 }: {
-  row: AgentStage & { stage: Stage }
+  row: AgentStageWithOwners & { stage: Stage }
   position: number
+  owners: Owner[]
   agentId: string
   currentStageId: string
   targetGoLive: string | null
@@ -238,6 +252,15 @@ function StageCard({
 
   async function updateStage(patch: Partial<AgentStage>) {
     const { error } = await supabase.from('agent_stages').update(patch).eq('id', row.id)
+    if (error) window.alert(error.message)
+    else await onSaved()
+  }
+
+  async function updateStageOwners(ownerIds: string[]) {
+    const { error } = await supabase.rpc('set_agent_stage_owners', {
+      p_agent_stage_id: row.id,
+      p_owner_ids: ownerIds,
+    })
     if (error) window.alert(error.message)
     else await onSaved()
   }
@@ -356,6 +379,9 @@ function StageCard({
           <span className="text-ink-400 block text-xs">
             {substeps.length > 0 ? `${done}/${substeps.length} steps done` : 'No sub-steps'}
             {row.actual_start ? ` · started ${formatDate(row.actual_start)}` : ''}
+            {row.agent_stage_owners.length > 0
+              ? ` · ${ownerNames(row.agent_stage_owners)}`
+              : ''}
           </span>
         </span>
 
@@ -383,7 +409,7 @@ function StageCard({
 
       {open ? (
         <div className="border-ink-100 dark:border-ink-800 space-y-5 border-t px-4 py-4 md:px-5">
-          <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-5">
             <Field label="Expected days">
               <input
                 type="number"
@@ -448,6 +474,13 @@ function StageCard({
                 <option value="blocked">Blocked</option>
               </select>
             </Field>
+            <FieldGroup label="Stage owners">
+              <OwnerMultiSelect
+                owners={owners}
+                selectedIds={row.agent_stage_owners.map((assignment) => assignment.owner_id)}
+                onChange={(ownerIds) => void updateStageOwners(ownerIds)}
+              />
+            </FieldGroup>
           </div>
 
           <ul className="space-y-1">
@@ -516,20 +549,36 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
+function FieldGroup({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div>
+      <span className="text-ink-400 text-[10px] font-bold tracking-[0.12em] uppercase">
+        {label}
+      </span>
+      <span className="text-ink-800 dark:text-ink-100 mt-1 block text-sm">{children}</span>
+    </div>
+  )
+}
+
 function AgentActions({
   agent,
   rows,
+  owners,
   departments,
   onSaved,
 }: {
-  agent: Agent
-  rows: Array<AgentStage & { stage: Stage }>
+  agent: AgentWithStages
+  rows: Array<AgentStageWithOwners & { stage: Stage }>
+  owners: Owner[]
   departments: Department[]
   onSaved: () => Promise<void>
 }) {
   const navigate = useNavigate()
   const [editing, setEditing] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [ownerIds, setOwnerIds] = useState(() =>
+    agent.agent_owners.map((assignment) => assignment.owner_id),
+  )
   const index = rows.findIndex((r) => r.stage_id === agent.current_stage_id)
 
   async function setCurrent(nextIndex: number) {
@@ -589,6 +638,10 @@ function AgentActions({
 
   async function saveDetails(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (ownerIds.length === 0) {
+      window.alert('Select at least one owner.')
+      return
+    }
     const form = new FormData(event.currentTarget)
     const goLive = String(form.get('target_go_live') ?? '')
     const sourceUrl = String(form.get('source_url') ?? '').trim()
@@ -597,7 +650,7 @@ function AgentActions({
       return
     }
     setBusy(true)
-    const { error } = await supabase
+    const { error: detailError } = await supabase
       .from('agents')
       .update({
         title: String(form.get('title') ?? '').trim(),
@@ -605,17 +658,26 @@ function AgentActions({
         requester_department: String(form.get('requester_department') ?? '').trim(),
         description: String(form.get('description') ?? '').trim(),
         priority: String(form.get('priority') ?? 'medium') as AgentPriority,
-        assigned_to: String(form.get('assigned_to') ?? '').trim(),
         source_url: sourceUrl || null,
         target_go_live: goLive || null,
       })
       .eq('id', agent.id)
-    setBusy(false)
-    if (error) window.alert(error.message)
-    else {
-      setEditing(false)
-      await onSaved()
+    if (detailError) {
+      setBusy(false)
+      window.alert(detailError.message)
+      return
     }
+    const { error: ownerError } = await supabase.rpc('set_agent_owners', {
+      p_agent_id: agent.id,
+      p_owner_ids: ownerIds,
+    })
+    setBusy(false)
+    if (ownerError) {
+      window.alert(ownerError.message)
+      return
+    }
+    setEditing(false)
+    await onSaved()
   }
 
   async function deleteAgent() {
@@ -656,7 +718,10 @@ function AgentActions({
           type="button"
           aria-expanded={editing}
           className="border-ink-200 text-ink-700 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-200 rounded-full border bg-white px-3.5 py-1.5 text-sm font-semibold transition hover:-translate-y-0.5"
-          onClick={() => setEditing((open) => !open)}
+          onClick={() => {
+            setOwnerIds(agent.agent_owners.map((assignment) => assignment.owner_id))
+            setEditing((open) => !open)
+          }}
         >
           {editing ? 'Close editor' : 'Edit details'}
         </button>
@@ -715,7 +780,14 @@ function AgentActions({
                 ))}
             </select>
           </Field>
-          <EditField label="Owner" name="assigned_to" defaultValue={agent.assigned_to} required />
+          <FieldGroup label="Owners">
+            <OwnerMultiSelect
+              owners={owners}
+              selectedIds={ownerIds}
+              onChange={setOwnerIds}
+              required
+            />
+          </FieldGroup>
           <Field label="Priority">
             <select
               name="priority"

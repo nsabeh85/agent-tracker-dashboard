@@ -5,6 +5,7 @@ import {
   demoAgents,
   demoComments,
   demoDepartments,
+  demoOwners,
   demoStages,
   demoSubsteps,
 } from '../lib/demoData'
@@ -19,10 +20,13 @@ import type {
 
 const TRACKER_TABLES = [
   'agents',
+  'agent_owners',
   'agent_stages',
+  'agent_stage_owners',
   'agent_substeps',
   'comments',
   'departments',
+  'owners',
 ] as const
 
 export function useRealtimeTick(): number {
@@ -50,20 +54,24 @@ export function useRealtimeTick(): number {
 export function useCatalog(tick: number) {
   const [stages, setStages] = useState<Stage[]>(isDemoMode ? demoStages : [])
   const [substeps, setSubsteps] = useState<Substep[]>(isDemoMode ? demoSubsteps : [])
+  const [owners, setOwners] = useState(isDemoMode ? demoOwners : [])
   const [departments, setDepartments] = useState(isDemoMode ? demoDepartments : [])
   const [error, setError] = useState<string | null>(null)
 
   const reload = useCallback(async () => {
     if (isDemoMode) return
-    const [stageRes, substepRes, departmentRes] = await Promise.all([
+    const [stageRes, substepRes, ownerRes, departmentRes] = await Promise.all([
       supabase.from('stages').select('*').order('sort_order'),
       supabase.from('substeps').select('*').order('sort_order'),
+      supabase.from('owners').select('*').order('sort_order').order('full_name'),
       supabase.from('departments').select('*').order('sort_order').order('name'),
     ])
     if (stageRes.error) setError(stageRes.error.message)
     else setStages(stageRes.data)
     if (substepRes.error) setError(substepRes.error.message)
     else setSubsteps(substepRes.data)
+    if (ownerRes.error) setError(ownerRes.error.message)
+    else setOwners(ownerRes.data)
     if (departmentRes.error) setError(departmentRes.error.message)
     else setDepartments(departmentRes.data)
   }, [])
@@ -72,7 +80,7 @@ export function useCatalog(tick: number) {
     void reload()
   }, [reload, tick])
 
-  return { stages, substeps, departments, error, reload }
+  return { stages, substeps, owners, departments, error, reload }
 }
 
 export function useAgents(tick: number) {
@@ -84,7 +92,9 @@ export function useAgents(tick: number) {
     if (isDemoMode) return
     const { data, error: queryError } = await supabase
       .from('agents')
-      .select('*, agent_stages(*)')
+      .select(
+        '*, agent_owners(owner_id, owner:owners(*)), agent_stages(*, agent_stage_owners(owner_id, owner:owners(*)))',
+      )
       .order('updated_at', { ascending: false })
     if (queryError) {
       setError(queryError.message)
@@ -125,7 +135,13 @@ export function useAgentDetail(agentId: string | undefined, tick: number) {
     }
 
     const [agentRes, subRes, commentRes] = await Promise.all([
-      supabase.from('agents').select('*, agent_stages(*)').eq('id', agentId).maybeSingle(),
+      supabase
+        .from('agents')
+        .select(
+          '*, agent_owners(owner_id, owner:owners(*)), agent_stages(*, agent_stage_owners(owner_id, owner:owners(*)))',
+        )
+        .eq('id', agentId)
+        .maybeSingle(),
       supabase.from('agent_substeps').select('*').eq('agent_id', agentId).order('sort_order'),
       supabase
         .from('comments')
@@ -149,16 +165,16 @@ export function useAgentDetail(agentId: string | undefined, tick: number) {
   return { agent, substeps, comments, loading, error, reload }
 }
 
-export function orderedAgentStages(
-  agentStages: AgentStage[],
+export function orderedAgentStages<T extends AgentStage>(
+  agentStages: T[],
   stages: Stage[],
-): Array<AgentStage & { stage: Stage }> {
+): Array<T & { stage: Stage }> {
   const byId = new Map(stages.map((s) => [s.id, s]))
   return [...agentStages]
     .map((row) => {
       const stage = byId.get(row.stage_id)
       return stage ? { ...row, stage } : null
     })
-    .filter((row): row is AgentStage & { stage: Stage } => row !== null)
+    .filter((row): row is T & { stage: Stage } => row !== null)
     .sort((a, b) => a.stage.sort_order - b.stage.sort_order)
 }

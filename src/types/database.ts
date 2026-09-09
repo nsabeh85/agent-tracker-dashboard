@@ -28,6 +28,66 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_owners: {
+        Row: {
+          agent_id: string
+          owner_id: string
+        }
+        Insert: {
+          agent_id: string
+          owner_id: string
+        }
+        Update: {
+          agent_id?: string
+          owner_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'agent_owners_agent_id_fkey'
+            columns: ['agent_id']
+            isOneToOne: false
+            referencedRelation: 'agents'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'agent_owners_owner_id_fkey'
+            columns: ['owner_id']
+            isOneToOne: false
+            referencedRelation: 'owners'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      agent_stage_owners: {
+        Row: {
+          agent_stage_id: string
+          owner_id: string
+        }
+        Insert: {
+          agent_stage_id: string
+          owner_id: string
+        }
+        Update: {
+          agent_stage_id?: string
+          owner_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'agent_stage_owners_agent_stage_id_fkey'
+            columns: ['agent_stage_id']
+            isOneToOne: false
+            referencedRelation: 'agent_stages'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'agent_stage_owners_owner_id_fkey'
+            columns: ['owner_id']
+            isOneToOne: false
+            referencedRelation: 'owners'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       agent_stages: {
         Row: {
           actual_end: string | null
@@ -256,6 +316,30 @@ export type Database = {
         }
         Relationships: []
       }
+      owners: {
+        Row: {
+          active: boolean
+          created_at: string
+          full_name: string
+          id: string
+          sort_order: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          full_name: string
+          id?: string
+          sort_order?: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          full_name?: string
+          id?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       stages: {
         Row: {
           default_duration_days: number
@@ -321,6 +405,18 @@ export type Database = {
         }
         Returns: string
       }
+      create_agent_with_owners: {
+        Args: {
+          p_description: string
+          p_owner_ids: string[]
+          p_priority: AgentPriority
+          p_requester_department: string
+          p_requester_name: string
+          p_target_go_live: string | null
+          p_title: string
+        }
+        Returns: string
+      }
       create_agent_with_source: {
         Args: {
           p_assigned_to: string
@@ -346,6 +442,40 @@ export type Database = {
         }
         Returns: string
       }
+      set_agent_owners: {
+        Args: {
+          p_agent_id: string
+          p_owner_ids: string[]
+        }
+        Returns: undefined
+      }
+      set_agent_stage_owners: {
+        Args: {
+          p_agent_stage_id: string
+          p_owner_ids: string[]
+        }
+        Returns: undefined
+      }
+      create_owner: {
+        Args: {
+          p_full_name: string
+        }
+        Returns: string
+      }
+      rename_owner: {
+        Args: {
+          p_full_name: string
+          p_owner_id: string
+        }
+        Returns: undefined
+      }
+      set_owner_active: {
+        Args: {
+          p_active: boolean
+          p_owner_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       agent_priority: AgentPriority
@@ -365,8 +495,21 @@ export type AgentStage = Database['public']['Tables']['agent_stages']['Row']
 export type AgentSubstep = Database['public']['Tables']['agent_substeps']['Row']
 export type Comment = Database['public']['Tables']['comments']['Row']
 export type Admin = Database['public']['Tables']['admins']['Row']
+export type Owner = Database['public']['Tables']['owners']['Row']
+export type AgentOwner = Database['public']['Tables']['agent_owners']['Row']
+export type AgentStageOwner = Database['public']['Tables']['agent_stage_owners']['Row']
 export type Department = Database['public']['Tables']['departments']['Row']
 
+export type OwnerAssignment = {
+  owner_id: string
+  owner: Owner
+}
+
+export type AgentStageWithOwners = AgentStage & {
+  agent_stage_owners: OwnerAssignment[]
+}
+
 export type AgentWithStages = Agent & {
-  agent_stages: AgentStage[]
+  agent_stages: AgentStageWithOwners[]
+  agent_owners: OwnerAssignment[]
 }

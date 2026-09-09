@@ -1,47 +1,62 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { OwnerMultiSelect } from '../components/OwnerMultiSelect'
 import { useCatalog, useRealtimeTick } from '../hooks/useTracker'
 import { isHttpsUrl } from '../lib/sourceLink'
 import { supabase } from '../lib/supabase'
 import type { AgentPriority } from '../types/database'
 
-const OWNERS = ['Nabih', 'Mark']
-
 export function NewAgentPage() {
   const navigate = useNavigate()
   const tick = useRealtimeTick()
-  const { departments, error: catalogError } = useCatalog(tick)
+  const { owners: ownerCatalog, departments, error: catalogError } = useCatalog(tick)
+  const owners = ownerCatalog.filter((owner) => owner.active)
   const activeDepartments = departments.filter((department) => department.active)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [ownerIds, setOwnerIds] = useState<string[]>([])
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (ownerIds.length === 0) {
+      setError('Select at least one owner.')
+      return
+    }
     const form = new FormData(event.currentTarget)
-    setSaving(true)
-    setError(null)
-    const goLive = String(form.get('target_go_live') ?? '')
     const sourceUrl = String(form.get('source_url') ?? '').trim()
     if (!isHttpsUrl(sourceUrl)) {
-      setSaving(false)
       setError('Source request must be a valid HTTPS URL.')
       return
     }
-    const { data, error: rpcError } = await supabase.rpc('create_agent_with_source', {
+    setSaving(true)
+    setError(null)
+    const goLive = String(form.get('target_go_live') ?? '')
+    const { data, error: rpcError } = await supabase.rpc('create_agent_with_owners', {
       p_title: String(form.get('title') ?? '').trim(),
       p_requester_name: String(form.get('requester_name') ?? '').trim(),
       p_requester_department: String(form.get('requester_department') ?? '').trim(),
       p_description: String(form.get('description') ?? '').trim(),
       p_priority: String(form.get('priority') ?? 'medium') as AgentPriority,
       p_target_go_live: goLive || null,
-      p_assigned_to: String(form.get('assigned_to') ?? 'Nabih'),
-      p_source_url: sourceUrl,
+      p_owner_ids: ownerIds,
     })
-    setSaving(false)
     if (rpcError) {
+      setSaving(false)
       setError(rpcError.message)
       return
     }
+    if (data && sourceUrl) {
+      const { error: sourceError } = await supabase
+        .from('agents')
+        .update({ source_url: sourceUrl })
+        .eq('id', data)
+      if (sourceError) {
+        setSaving(false)
+        setError(sourceError.message)
+        return
+      }
+    }
+    setSaving(false)
     if (data) navigate(`/agents/${data}`)
   }
 
@@ -116,14 +131,15 @@ export function NewAgentPage() {
           />
         </label>
         <label className="block text-xs font-medium text-ink-500 dark:text-ink-400">
-          Assigned to
-          <select name="assigned_to" className="mt-1 w-full rounded-xl border border-ink-200 dark:border-ink-800 px-3 py-2 text-sm">
-            {OWNERS.map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </select>
+          Owners
+          <span className="mt-1 block">
+            <OwnerMultiSelect
+              owners={owners}
+              selectedIds={ownerIds}
+              onChange={setOwnerIds}
+              required
+            />
+          </span>
         </label>
         {error || catalogError ? (
           <p className="text-sm text-red-600 dark:text-red-400">{error ?? catalogError}</p>

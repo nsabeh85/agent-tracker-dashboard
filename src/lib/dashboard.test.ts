@@ -38,6 +38,7 @@ function agent({
     source_url: null,
     created_at: createdAt,
     updated_at: createdAt,
+    agent_owners: [],
     agent_stages: [
       {
         id: `${id}-stage`,
@@ -47,6 +48,7 @@ function agent({
         actual_start: stageStarted,
         actual_end: null,
         status: stageId === 'live' ? 'complete' : 'in_progress',
+        agent_stage_owners: [],
       },
     ],
   }
