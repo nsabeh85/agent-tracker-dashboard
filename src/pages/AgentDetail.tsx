@@ -10,6 +10,11 @@ import {
   useRealtimeTick,
 } from '../hooks/useTracker'
 import {
+  allSubstepsComplete,
+  canAutoAdvance,
+  nextStageAfter,
+  needsGoLiveDate,
+  GO_LIVE_BEFORE_TESTING,
   dueLabel,
   formatDate,
   formatDateTime,
@@ -20,7 +25,7 @@ import {
   todayISO,
 } from '../lib/schedule'
 import { descriptionWithoutSource, isHttpsUrl, sourceLabel } from '../lib/sourceLink'
-import { supabase } from '../lib/supabase'
+import { isMissingFunctionError, supabase } from '../lib/supabase'
 import type {
   Agent,
   AgentPriority,
@@ -170,6 +175,10 @@ export function AgentDetailPage() {
             key={row.id}
             row={row}
             position={index + 1}
+            agentId={agent.id}
+            currentStageId={agent.current_stage_id}
+            targetGoLive={agent.target_go_live}
+            stageRows={rows}
             substeps={substeps.filter((s) => s.agent_stage_id === row.id)}
             open={openStageId === row.id}
             onToggle={() =>
@@ -202,6 +211,10 @@ function Chip({ label, value }: { label: string; value: string }) {
 function StageCard({
   row,
   position,
+  agentId,
+  currentStageId,
+  targetGoLive,
+  stageRows,
   substeps,
   open,
   onToggle,
@@ -209,6 +222,10 @@ function StageCard({
 }: {
   row: AgentStage & { stage: Stage }
   position: number
+  agentId: string
+  currentStageId: string
+  targetGoLive: string | null
+  stageRows: Array<AgentStage & { stage: Stage }>
   substeps: AgentSubstep[]
   open: boolean
   onToggle: () => void
@@ -225,6 +242,59 @@ function StageCard({
     else await onSaved()
   }
 
+  /** Completes this current stage and starts the next one, preferring the RPC. */
+  async function completeAndAdvance(itemStatuses = substeps) {
+    if (!canAutoAdvance(row, currentStageId, itemStatuses)) return
+    const next = nextStageAfter(stageRows, row)
+    if (needsGoLiveDate(next?.stage.name, targetGoLive)) {
+      window.alert(GO_LIVE_BEFORE_TESTING)
+      return
+    }
+    const { error } = await supabase.rpc('complete_stage_and_advance', {
+      p_agent_id: agentId,
+      p_agent_stage_id: row.id,
+    })
+    if (!error) {
+      await onSaved()
+      return
+    }
+    if (!isMissingFunctionError(error)) {
+      window.alert(error.message)
+      return
+    }
+
+    const { error: completeError } = await supabase
+      .from('agent_stages')
+      .update({ status: 'complete', actual_end: row.actual_end ?? todayISO() })
+      .eq('id', row.id)
+    if (completeError) {
+      window.alert(completeError.message)
+      return
+    }
+    if (next) {
+      const { error: nextError } = await supabase
+        .from('agent_stages')
+        .update({
+          status: 'in_progress',
+          actual_start: next.actual_start ?? todayISO(),
+        })
+        .eq('id', next.id)
+      if (nextError) {
+        window.alert(nextError.message)
+        return
+      }
+      const { error: agentError } = await supabase
+        .from('agents')
+        .update({ current_stage_id: next.stage_id })
+        .eq('id', agentId)
+      if (agentError) {
+        window.alert(agentError.message)
+        return
+      }
+    }
+    await onSaved()
+  }
+
   async function toggleSubstep(step: AgentSubstep) {
     const next: ProgressStatus = step.status === 'complete' ? 'not_started' : 'complete'
     const { error } = await supabase
@@ -236,8 +306,18 @@ function StageCard({
           next === 'complete' && !step.actual_start ? todayISO() : step.actual_start,
       })
       .eq('id', step.id)
-    if (error) window.alert(error.message)
-    else await onSaved()
+    if (error) {
+      window.alert(error.message)
+      return
+    }
+
+    const settled = substeps.map((s) => (s.id === step.id ? { ...s, status: next } : s))
+    if (next === 'complete' && row.status !== 'complete' && allSubstepsComplete(settled)) {
+      await completeAndAdvance(settled)
+      return
+    }
+
+    await onSaved()
   }
 
   return (
@@ -344,9 +424,23 @@ function StageCard({
               <select
                 value={row.status}
                 className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
-                onChange={(e) =>
-                  void updateStage({ status: e.target.value as ProgressStatus })
-                }
+                onChange={(e) => {
+                  const status = e.target.value as ProgressStatus
+                  if (status !== 'complete') {
+                    void updateStage({ status })
+                    return
+                  }
+                  if (!allSubstepsComplete(substeps)) {
+                    window.alert(
+                      substeps.length === 0
+                        ? 'A stage with no items cannot auto-advance. Use Advance stage to move on.'
+                        : 'Mark every item in this stage complete before the tracker can move on.',
+                    )
+                    return
+                  }
+                  if (row.stage_id === currentStageId) void completeAndAdvance()
+                  else void updateStage({ status: 'complete', actual_end: row.actual_end ?? todayISO() })
+                }}
               >
                 <option value="not_started">Not started</option>
                 <option value="in_progress">In progress</option>
@@ -442,6 +536,11 @@ function AgentActions({
     const next = rows[nextIndex]
     const current = rows[index]
     if (!next) return
+
+    if (nextIndex > index && needsGoLiveDate(next.stage.name, agent.target_go_live)) {
+      window.alert(GO_LIVE_BEFORE_TESTING)
+      return
+    }
 
     if (current && nextIndex > index) {
       await supabase

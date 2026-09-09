@@ -314,6 +314,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      complete_stage_and_advance: {
+        Args: {
+          p_agent_id: string
+          p_agent_stage_id: string
+        }
+        Returns: string
+      }
       create_agent_with_source: {
         Args: {
           p_assigned_to: string
