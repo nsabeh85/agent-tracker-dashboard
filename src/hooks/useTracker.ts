@@ -4,6 +4,7 @@ import {
   demoAgentSubsteps,
   demoAgents,
   demoComments,
+  demoDepartments,
   demoStages,
   demoSubsteps,
 } from '../lib/demoData'
@@ -16,7 +17,13 @@ import type {
   Substep,
 } from '../types/database'
 
-const TRACKER_TABLES = ['agents', 'agent_stages', 'agent_substeps', 'comments'] as const
+const TRACKER_TABLES = [
+  'agents',
+  'agent_stages',
+  'agent_substeps',
+  'comments',
+  'departments',
+] as const
 
 export function useRealtimeTick(): number {
   const [tick, setTick] = useState(0)
@@ -43,25 +50,29 @@ export function useRealtimeTick(): number {
 export function useCatalog(tick: number) {
   const [stages, setStages] = useState<Stage[]>(isDemoMode ? demoStages : [])
   const [substeps, setSubsteps] = useState<Substep[]>(isDemoMode ? demoSubsteps : [])
+  const [departments, setDepartments] = useState(isDemoMode ? demoDepartments : [])
   const [error, setError] = useState<string | null>(null)
 
   const reload = useCallback(async () => {
     if (isDemoMode) return
-    const [stageRes, substepRes] = await Promise.all([
+    const [stageRes, substepRes, departmentRes] = await Promise.all([
       supabase.from('stages').select('*').order('sort_order'),
       supabase.from('substeps').select('*').order('sort_order'),
+      supabase.from('departments').select('*').order('sort_order').order('name'),
     ])
     if (stageRes.error) setError(stageRes.error.message)
     else setStages(stageRes.data)
     if (substepRes.error) setError(substepRes.error.message)
     else setSubsteps(substepRes.data)
+    if (departmentRes.error) setError(departmentRes.error.message)
+    else setDepartments(departmentRes.data)
   }, [])
 
   useEffect(() => {
     void reload()
   }, [reload, tick])
 
-  return { stages, substeps, error, reload }
+  return { stages, substeps, departments, error, reload }
 }
 
 export function useAgents(tick: number) {

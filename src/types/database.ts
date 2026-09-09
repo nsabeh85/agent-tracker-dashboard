@@ -141,6 +141,7 @@ export type Database = {
           priority: AgentPriority
           requester_department: string
           requester_name: string
+          source_url: string | null
           status: AgentStatus
           target_go_live: string | null
           title: string
@@ -155,6 +156,7 @@ export type Database = {
           priority?: AgentPriority
           requester_department: string
           requester_name: string
+          source_url?: string | null
           status?: AgentStatus
           target_go_live?: string | null
           title: string
@@ -169,6 +171,7 @@ export type Database = {
           priority?: AgentPriority
           requester_department?: string
           requester_name?: string
+          source_url?: string | null
           status?: AgentStatus
           target_go_live?: string | null
           title?: string
@@ -228,6 +231,30 @@ export type Database = {
             referencedColumns: ['id']
           },
         ]
+      }
+      departments: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
       }
       stages: {
         Row: {
@@ -294,6 +321,19 @@ export type Database = {
         }
         Returns: string
       }
+      create_agent_with_source: {
+        Args: {
+          p_assigned_to: string
+          p_description: string
+          p_priority: AgentPriority
+          p_requester_department: string
+          p_requester_name: string
+          p_source_url: string
+          p_target_go_live: string | null
+          p_title: string
+        }
+        Returns: string
+      }
       create_agent: {
         Args: {
           p_assigned_to: string
@@ -325,6 +365,7 @@ export type AgentStage = Database['public']['Tables']['agent_stages']['Row']
 export type AgentSubstep = Database['public']['Tables']['agent_substeps']['Row']
 export type Comment = Database['public']['Tables']['comments']['Row']
 export type Admin = Database['public']['Tables']['admins']['Row']
+export type Department = Database['public']['Tables']['departments']['Row']
 
 export type AgentWithStages = Agent & {
   agent_stages: AgentStage[]

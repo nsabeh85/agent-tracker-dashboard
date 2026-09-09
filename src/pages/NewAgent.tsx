@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useCatalog, useRealtimeTick } from '../hooks/useTracker'
+import { isHttpsUrl } from '../lib/sourceLink'
 import { supabase } from '../lib/supabase'
 import type { AgentPriority } from '../types/database'
 
@@ -7,6 +9,9 @@ const OWNERS = ['Nabih', 'Mark']
 
 export function NewAgentPage() {
   const navigate = useNavigate()
+  const tick = useRealtimeTick()
+  const { departments, error: catalogError } = useCatalog(tick)
+  const activeDepartments = departments.filter((department) => department.active)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -16,7 +21,13 @@ export function NewAgentPage() {
     setSaving(true)
     setError(null)
     const goLive = String(form.get('target_go_live') ?? '')
-    const { data, error: rpcError } = await supabase.rpc('create_agent', {
+    const sourceUrl = String(form.get('source_url') ?? '').trim()
+    if (!isHttpsUrl(sourceUrl)) {
+      setSaving(false)
+      setError('Source request must be a valid HTTPS URL.')
+      return
+    }
+    const { data, error: rpcError } = await supabase.rpc('create_agent_with_source', {
       p_title: String(form.get('title') ?? '').trim(),
       p_requester_name: String(form.get('requester_name') ?? '').trim(),
       p_requester_department: String(form.get('requester_department') ?? '').trim(),
@@ -24,6 +35,7 @@ export function NewAgentPage() {
       p_priority: String(form.get('priority') ?? 'medium') as AgentPriority,
       p_target_go_live: goLive || null,
       p_assigned_to: String(form.get('assigned_to') ?? 'Nabih'),
+      p_source_url: sourceUrl,
     })
     setSaving(false)
     if (rpcError) {
@@ -48,13 +60,39 @@ export function NewAgentPage() {
       <form onSubmit={(e) => void onSubmit(e)} className="space-y-4 rounded-2xl border border-ink-200 dark:border-ink-800 bg-white dark:bg-ink-900 p-5">
         <Input name="title" label="Title" required />
         <Input name="requester_name" label="Requester name" required />
-        <Input name="requester_department" label="Department" required />
+        <label className="block text-xs font-medium text-ink-500 dark:text-ink-400">
+          Department
+          <select
+            name="requester_department"
+            required
+            defaultValue=""
+            className="mt-1 w-full rounded-xl border border-ink-200 px-3 py-2 text-sm dark:border-ink-800"
+          >
+            <option value="" disabled>
+              Select a department
+            </option>
+            {activeDepartments.map((department) => (
+              <option key={department.id} value={department.name}>
+                {department.name}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="block text-xs font-medium text-ink-500 dark:text-ink-400">
           Description
           <textarea
             name="description"
             rows={4}
             className="mt-1 w-full rounded-xl border border-ink-200 dark:border-ink-800 px-3 py-2 text-sm text-ink-800 dark:text-ink-100"
+          />
+        </label>
+        <label className="block text-xs font-medium text-ink-500 dark:text-ink-400">
+          Source request link (optional)
+          <input
+            type="url"
+            name="source_url"
+            placeholder="https://digitalrealty-cdo.atlassian.net/browse/PCT-123"
+            className="mt-1 w-full rounded-xl border border-ink-200 px-3 py-2 text-sm text-ink-800 dark:border-ink-800 dark:text-ink-100"
           />
         </label>
         <label className="block text-xs font-medium text-ink-500 dark:text-ink-400">
@@ -87,7 +125,9 @@ export function NewAgentPage() {
             ))}
           </select>
         </label>
-        {error ? <p className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}
+        {error || catalogError ? (
+          <p className="text-sm text-red-600 dark:text-red-400">{error ?? catalogError}</p>
+        ) : null}
         <button
           type="submit"
           disabled={saving}
