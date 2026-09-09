@@ -141,6 +141,7 @@ export type Database = {
           priority: AgentPriority
           requester_department: string
           requester_name: string
+          source_url: string | null
           status: AgentStatus
           target_go_live: string | null
           title: string
@@ -155,6 +156,7 @@ export type Database = {
           priority?: AgentPriority
           requester_department: string
           requester_name: string
+          source_url?: string | null
           status?: AgentStatus
           target_go_live?: string | null
           title: string
@@ -169,6 +171,7 @@ export type Database = {
           priority?: AgentPriority
           requester_department?: string
           requester_name?: string
+          source_url?: string | null
           status?: AgentStatus
           target_go_live?: string | null
           title?: string
@@ -311,6 +314,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_agent_with_source: {
+        Args: {
+          p_assigned_to: string
+          p_description: string
+          p_priority: AgentPriority
+          p_requester_department: string
+          p_requester_name: string
+          p_source_url: string
+          p_target_go_live: string | null
+          p_title: string
+        }
+        Returns: string
+      }
       create_agent: {
         Args: {
           p_assigned_to: string

@@ -121,6 +121,7 @@ export const demoAgents: AgentWithStages[] = JIRA_INTAKE.map((row) => {
     requester_name: requesterName(row.assignee),
     requester_department: row.department,
     description: agentDescription(row),
+    source_url: `https://digitalrealty-cdo.atlassian.net/browse/${row.key}`,
     priority: 'medium' as AgentPriority,
     current_stage_id: 'stage-1',
     target_go_live: null,

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useCatalog, useRealtimeTick } from '../hooks/useTracker'
+import { isHttpsUrl } from '../lib/sourceLink'
 import { supabase } from '../lib/supabase'
 import type { AgentPriority } from '../types/database'
 
@@ -20,7 +21,13 @@ export function NewAgentPage() {
     setSaving(true)
     setError(null)
     const goLive = String(form.get('target_go_live') ?? '')
-    const { data, error: rpcError } = await supabase.rpc('create_agent', {
+    const sourceUrl = String(form.get('source_url') ?? '').trim()
+    if (!isHttpsUrl(sourceUrl)) {
+      setSaving(false)
+      setError('Source request must be a valid HTTPS URL.')
+      return
+    }
+    const { data, error: rpcError } = await supabase.rpc('create_agent_with_source', {
       p_title: String(form.get('title') ?? '').trim(),
       p_requester_name: String(form.get('requester_name') ?? '').trim(),
       p_requester_department: String(form.get('requester_department') ?? '').trim(),
@@ -28,6 +35,7 @@ export function NewAgentPage() {
       p_priority: String(form.get('priority') ?? 'medium') as AgentPriority,
       p_target_go_live: goLive || null,
       p_assigned_to: String(form.get('assigned_to') ?? 'Nabih'),
+      p_source_url: sourceUrl,
     })
     setSaving(false)
     if (rpcError) {
@@ -76,6 +84,15 @@ export function NewAgentPage() {
             name="description"
             rows={4}
             className="mt-1 w-full rounded-xl border border-ink-200 dark:border-ink-800 px-3 py-2 text-sm text-ink-800 dark:text-ink-100"
+          />
+        </label>
+        <label className="block text-xs font-medium text-ink-500 dark:text-ink-400">
+          Source request link (optional)
+          <input
+            type="url"
+            name="source_url"
+            placeholder="https://digitalrealty-cdo.atlassian.net/browse/PCT-123"
+            className="mt-1 w-full rounded-xl border border-ink-200 px-3 py-2 text-sm text-ink-800 dark:border-ink-800 dark:text-ink-100"
           />
         </label>
         <label className="block text-xs font-medium text-ink-500 dark:text-ink-400">

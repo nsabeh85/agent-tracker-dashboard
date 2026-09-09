@@ -19,6 +19,7 @@ import {
   statusLabel,
   todayISO,
 } from '../lib/schedule'
+import { descriptionWithoutSource, isHttpsUrl, sourceLabel } from '../lib/sourceLink'
 import { supabase } from '../lib/supabase'
 import type {
   Agent,
@@ -67,6 +68,7 @@ export function AgentDetailPage() {
   if (!agent) return <p className="text-ink-500 text-sm">Agent not found.</p>
 
   const current = stages.find((s) => s.id === agent.current_stage_id)
+  const displayDescription = descriptionWithoutSource(agent.description, agent.source_url)
 
   return (
     <div className="space-y-6">
@@ -102,8 +104,20 @@ export function AgentDetailPage() {
             />
           </div>
 
-          {agent.description ? (
-            <p className="max-w-2xl text-sm leading-relaxed text-white/75">{agent.description}</p>
+          {displayDescription ? (
+            <p className="max-w-2xl text-sm leading-relaxed text-white/75">
+              {displayDescription}
+            </p>
+          ) : null}
+          {agent.source_url ? (
+            <a
+              href={agent.source_url}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-white ring-1 ring-white/20 transition hover:bg-white/20"
+            >
+              Source request: {sourceLabel(agent.source_url)}
+            </a>
           ) : null}
 
           <div className="flex flex-wrap gap-2 text-xs">
@@ -478,6 +492,11 @@ function AgentActions({
     event.preventDefault()
     const form = new FormData(event.currentTarget)
     const goLive = String(form.get('target_go_live') ?? '')
+    const sourceUrl = String(form.get('source_url') ?? '').trim()
+    if (!isHttpsUrl(sourceUrl)) {
+      window.alert('Source request must be a valid HTTPS URL.')
+      return
+    }
     setBusy(true)
     const { error } = await supabase
       .from('agents')
@@ -488,6 +507,7 @@ function AgentActions({
         description: String(form.get('description') ?? '').trim(),
         priority: String(form.get('priority') ?? 'medium') as AgentPriority,
         assigned_to: String(form.get('assigned_to') ?? '').trim(),
+        source_url: sourceUrl || null,
         target_go_live: goLive || null,
       })
       .eq('id', agent.id)
@@ -623,6 +643,17 @@ function AgentActions({
                 rows={3}
                 defaultValue={agent.description}
                 className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-100 w-full resize-y rounded-lg border px-2 py-1.5 outline-none"
+              />
+            </Field>
+          </div>
+          <div className="sm:col-span-2">
+            <Field label="Source request link">
+              <input
+                type="url"
+                name="source_url"
+                defaultValue={agent.source_url ?? ''}
+                placeholder="https://digitalrealty-cdo.atlassian.net/browse/PCT-123"
+                className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
               />
             </Field>
           </div>
