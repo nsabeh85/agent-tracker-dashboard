@@ -35,6 +35,7 @@ function agent({
     target_go_live: target,
     assigned_to: 'Example Owner',
     status,
+    source_url: null,
     created_at: createdAt,
     updated_at: createdAt,
     agent_stages: [
