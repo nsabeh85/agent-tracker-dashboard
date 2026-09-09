@@ -5,6 +5,12 @@ import { ProgressBar } from '../components/ProgressBar'
 import { ScheduleMarker } from '../components/ScheduleMarker'
 import { useAgents, useCatalog, useRealtimeTick } from '../hooks/useTracker'
 import {
+  compareAgents,
+  matchesDashboardMetric,
+  type DashboardMetric,
+  type DashboardSort,
+} from '../lib/dashboard'
+import {
   dueLabel,
   formatDate,
   initials,
@@ -15,24 +21,13 @@ import {
 } from '../lib/schedule'
 import type { AgentPriority, AgentWithStages, Stage } from '../types/database'
 
-type SortKey = 'target' | 'priority' | 'updated'
 type StatusFilter = 'all' | 'pending_approval' | 'active'
-
-const PRIORITY_RANK: Record<AgentPriority, number> = { high: 0, medium: 1, low: 2 }
 
 const PRIORITY_STYLE: Record<AgentPriority, string> = {
   high: 'bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-500/15 dark:text-rose-300 dark:ring-rose-500/30',
   medium:
     'bg-brand-50 text-brand-700 ring-brand-200 dark:bg-brand-500/15 dark:text-brand-300 dark:ring-brand-500/30',
   low: 'bg-ink-100 text-ink-600 ring-ink-200 dark:bg-ink-800 dark:text-ink-300 dark:ring-ink-700',
-}
-
-function compareAgents(a: AgentWithStages, b: AgentWithStages, sort: SortKey): number {
-  if (sort === 'priority') return PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority]
-  if (sort === 'updated') return b.updated_at.localeCompare(a.updated_at)
-  const aDate = a.target_go_live ?? '9999-12-31'
-  const bDate = b.target_go_live ?? '9999-12-31'
-  return aDate.localeCompare(bDate)
 }
 
 function Select({
@@ -71,7 +66,8 @@ export function DashboardPage() {
   const [owner, setOwner] = useState('')
   const [department, setDepartment] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
-  const [sort, setSort] = useState<SortKey>('target')
+  const [summaryMetric, setSummaryMetric] = useState<DashboardMetric | null>(null)
+  const [sort, setSort] = useState<DashboardSort>('priority')
 
   const owners = useMemo(
     () => [...new Set(agents.map((a) => a.assigned_to))].sort(),
@@ -85,6 +81,7 @@ export function DashboardPage() {
   const visible = useMemo(() => {
     return agents
       .filter((agent) => {
+        if (summaryMetric && !matchesDashboardMetric(agent, stages, summaryMetric)) return false
         if (statusFilter !== 'all' && agent.status !== statusFilter) return false
         if (stageId && agent.current_stage_id !== stageId) return false
         if (owner && agent.assigned_to !== owner) return false
@@ -92,11 +89,24 @@ export function DashboardPage() {
         return true
       })
       .sort((a, b) => compareAgents(a, b, sort))
-  }, [agents, department, owner, sort, stageId, statusFilter])
+  }, [agents, department, owner, sort, stageId, stages, statusFilter, summaryMetric])
+
+  function selectSummaryMetric(metric: DashboardMetric | null) {
+    setSummaryMetric(metric)
+    setStageId('')
+    setOwner('')
+    setDepartment('')
+    setStatusFilter('all')
+  }
 
   return (
     <div className="space-y-6">
-      <SummaryStrip agents={agents} stages={stages} />
+      <SummaryStrip
+        agents={agents}
+        stages={stages}
+        activeMetric={summaryMetric}
+        onMetricChange={selectSummaryMetric}
+      />
 
       <div className="border-ink-200/70 dark:border-ink-800 dark:bg-ink-900/50 grid grid-cols-2 gap-3 rounded-2xl border bg-white/70 p-3 backdrop-blur-sm sm:grid-cols-3 md:flex md:flex-wrap md:items-end md:p-4">
         <Select label="Stage" value={stageId} onChange={setStageId}>
@@ -126,13 +136,20 @@ export function DashboardPage() {
         <Select
           label="Status"
           value={statusFilter}
-          onChange={(value) => setStatusFilter(value as StatusFilter)}
+          onChange={(value) => {
+            setStatusFilter(value as StatusFilter)
+            setSummaryMetric(null)
+          }}
         >
           <option value="all">All statuses</option>
           <option value="pending_approval">Pending approval</option>
           <option value="active">Active only</option>
         </Select>
-        <Select label="Sort" value={sort} onChange={(value) => setSort(value as SortKey)}>
+        <Select
+          label="Sort"
+          value={sort}
+          onChange={(value) => setSort(value as DashboardSort)}
+        >
           <option value="target">Target date</option>
           <option value="priority">Priority</option>
           <option value="updated">Last updated</option>
