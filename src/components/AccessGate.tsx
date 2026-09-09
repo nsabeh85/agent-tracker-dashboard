@@ -10,8 +10,10 @@ export function RequireViewer({ children }: { children: ReactNode }) {
   const { configured, isDlrUser, loading, session } = useAuth()
   const location = useLocation()
 
-  if (!configured) return children
   if (loading) return <LoadingAccess />
+  if (!configured) {
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />
+  }
   if (!session || !isDlrUser) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />
   }
@@ -23,7 +25,9 @@ export function RequireAdmin({ children }: { children: ReactNode }) {
   const location = useLocation()
 
   if (loading) return <LoadingAccess />
-  if (!configured) return <Navigate to="/" replace />
+  if (!configured) {
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />
+  }
   if (!session || !isDlrUser) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />
   }

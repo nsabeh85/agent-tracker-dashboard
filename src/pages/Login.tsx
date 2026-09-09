@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 
 export function LoginPage() {
   const navigate = useNavigate()
-  const { admin, isDlrUser, session } = useAuth()
+  const { admin, configured, isDlrUser, session } = useAuth()
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -49,7 +49,11 @@ export function LoginPage() {
         Digital Realty employees can view the tracker. Administrators can also edit it.
       </p>
 
-      {session ? (
+      {!configured ? (
+        <p className="border-ink-200 dark:border-ink-800 dark:bg-ink-900 rounded-2xl border bg-white p-5 text-sm text-ink-600 dark:text-ink-300">
+          This tracker is not connected to a database, so sign-in is unavailable.
+        </p>
+      ) : session ? (
         <div className="border-ink-200 dark:border-ink-800 dark:bg-ink-900 space-y-3 rounded-2xl border bg-white p-5 text-sm">
           <p>
             Signed in as <span className="font-semibold">{session.user.email}</span>
