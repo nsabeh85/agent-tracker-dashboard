@@ -39,6 +39,7 @@ function agent({
     public_token: 'a'.repeat(32),
     savings_amount: null,
     savings_cadence: 'yearly',
+    copilot_studio_url: null,
     created_at: createdAt,
     updated_at: createdAt,
     agent_owners: [],

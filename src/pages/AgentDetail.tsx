@@ -27,6 +27,7 @@ import {
   statusLabel,
   todayISO,
 } from '../lib/schedule'
+import { copilotStudioLabel } from '../lib/copilotStudioLink'
 import { descriptionWithoutSource, isHttpsUrl, sourceLabel } from '../lib/sourceLink'
 import { isMissingFunctionError, supabase } from '../lib/supabase'
 import { parseSavingsAmount, savingsLabel } from '../lib/savings'
@@ -135,6 +136,16 @@ export function AgentDetailPage() {
               className="inline-flex rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-white ring-1 ring-white/20 transition hover:bg-white/20"
             >
               Source request: {sourceLabel(agent.source_url)}
+            </a>
+          ) : null}
+          {agent.copilot_studio_url ? (
+            <a
+              href={agent.copilot_studio_url}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-white ring-1 ring-white/20 transition hover:bg-white/20"
+            >
+              Open in Copilot Studio ({copilotStudioLabel(agent.copilot_studio_url)})
             </a>
           ) : null}
 
@@ -677,6 +688,11 @@ function AgentActions({
       window.alert('Source request must be a valid HTTPS URL.')
       return
     }
+    const studioUrl = String(form.get('copilot_studio_url') ?? '').trim()
+    if (!isHttpsUrl(studioUrl)) {
+      window.alert('Copilot Studio link must be a valid HTTPS URL.')
+      return
+    }
     const savings = parseSavingsAmount(String(form.get('savings_amount') ?? ''))
     if (savings === 'invalid') {
       window.alert('Money saved must be a number 0 or greater.')
@@ -693,6 +709,7 @@ function AgentActions({
         priority: String(form.get('priority') ?? 'medium') as AgentPriority,
         source_url: sourceUrl || null,
         target_go_live: goLive || null,
+        copilot_studio_url: studioUrl || null,
         savings_amount: savings,
         savings_cadence: String(form.get('savings_cadence') ?? 'yearly') === 'monthly' ? 'monthly' : 'yearly',
       })
@@ -863,6 +880,17 @@ function AgentActions({
               <option value="monthly">Monthly</option>
             </select>
           </Field>
+          <div className="sm:col-span-2">
+            <Field label="Copilot Studio link">
+              <input
+                type="url"
+                name="copilot_studio_url"
+                defaultValue={agent.copilot_studio_url ?? ''}
+                placeholder="https://copilotstudio.microsoft.com/..."
+                className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
+              />
+            </Field>
+          </div>
           <div className="sm:col-span-2">
             <Field label="Description">
               <textarea

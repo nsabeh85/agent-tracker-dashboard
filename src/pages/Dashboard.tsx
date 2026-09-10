@@ -20,6 +20,7 @@ import {
   isPastTargetGoLive,
   statusLabel,
 } from '../lib/schedule'
+import { copilotStudioLabel } from '../lib/copilotStudioLink'
 import { savingsLabel } from '../lib/savings'
 import type { AgentPriority, AgentWithStages, Stage } from '../types/database'
 
@@ -220,7 +221,18 @@ function AgentListItem({
         : 'bg-brand-500'
 
   return (
-    <li className="rise" style={{ animationDelay: `${Math.min(index, 8) * 45}ms` }}>
+    <li className="rise relative" style={{ animationDelay: `${Math.min(index, 8) * 45}ms` }}>
+      {agent.copilot_studio_url ? (
+        <a
+          href={agent.copilot_studio_url}
+          target="_blank"
+          rel="noreferrer"
+          className="text-brand-700 dark:text-brand-300 absolute top-3 right-3 z-10 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-semibold shadow-sm ring-1 ring-black/5 hover:bg-white dark:bg-ink-800 dark:ring-white/10"
+        >
+          Copilot Studio
+          <span className="sr-only"> ({copilotStudioLabel(agent.copilot_studio_url)})</span>
+        </a>
+      ) : null}
       <Link
         to={`/agents/${agent.id}`}
         className="group border-ink-200/80 hover:border-brand-300 dark:border-ink-800 dark:bg-ink-900 dark:hover:border-brand-500/60 relative block overflow-hidden rounded-2xl border bg-white p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-xl md:p-5 md:pl-6 dark:shadow-black/20 dark:hover:shadow-black/40"

@@ -203,6 +203,7 @@ export type Database = {
           priority: AgentPriority
           requester_department: string
           requester_name: string
+          copilot_studio_url: string | null
           savings_amount: number | null
           savings_cadence: SavingsCadence
           source_url: string | null
@@ -221,6 +222,7 @@ export type Database = {
           priority?: AgentPriority
           requester_department: string
           requester_name: string
+          copilot_studio_url?: string | null
           savings_amount?: number | null
           savings_cadence?: SavingsCadence
           source_url?: string | null
@@ -239,6 +241,7 @@ export type Database = {
           priority?: AgentPriority
           requester_department?: string
           requester_name?: string
+          copilot_studio_url?: string | null
           savings_amount?: number | null
           savings_cadence?: SavingsCadence
           source_url?: string | null

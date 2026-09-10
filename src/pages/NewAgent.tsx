@@ -32,6 +32,12 @@ export function NewAgentPage() {
     setSaving(true)
     setError(null)
     const goLive = String(form.get('target_go_live') ?? '')
+    const studioUrl = String(form.get('copilot_studio_url') ?? '').trim()
+    if (!isHttpsUrl(studioUrl)) {
+      setSaving(false)
+      setError('Copilot Studio link must be a valid HTTPS URL.')
+      return
+    }
     const savings = parseSavingsAmount(String(form.get('savings_amount') ?? ''))
     if (savings === 'invalid') {
       setSaving(false)
@@ -61,6 +67,7 @@ export function NewAgentPage() {
           source_url: sourceUrl || null,
           savings_amount: savings,
           savings_cadence: cadence,
+          copilot_studio_url: studioUrl || null,
         })
         .eq('id', data)
       if (extraError) {
@@ -175,6 +182,15 @@ export function NewAgentPage() {
             <option value="yearly">Yearly</option>
             <option value="monthly">Monthly</option>
           </select>
+        </label>
+        <label className="block text-xs font-medium text-ink-500 dark:text-ink-400">
+          Copilot Studio link (optional)
+          <input
+            type="url"
+            name="copilot_studio_url"
+            placeholder="https://copilotstudio.microsoft.com/..."
+            className="mt-1 w-full rounded-xl border border-ink-200 px-3 py-2 text-sm text-ink-800 dark:border-ink-800 dark:text-ink-100"
+          />
         </label>
         {error || catalogError ? (
           <p className="text-sm text-red-600 dark:text-red-400">{error ?? catalogError}</p>

@@ -44,6 +44,7 @@ function agent({
     updated_at: '2026-09-01T00:00:00Z',
     savings_amount: amount,
     savings_cadence: cadence,
+    copilot_studio_url: null,
     agent_owners: [],
     agent_stages: [],
   }
