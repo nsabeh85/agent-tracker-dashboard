@@ -9,6 +9,7 @@ import {
   demoStages,
   demoSubsteps,
 } from '../lib/demoData'
+import { parsePublicAgent, type PublicAgent } from '../lib/tracking'
 import type {
   AgentStage,
   AgentSubstep,
@@ -163,6 +164,90 @@ export function useAgentDetail(agentId: string | undefined, tick: number) {
   }, [reload, tick])
 
   return { agent, substeps, comments, loading, error, reload }
+}
+
+function toPublicAgent(agent: AgentWithStages, substeps: AgentSubstep[]): PublicAgent {
+  return {
+    title: agent.title,
+    description: agent.description,
+    source_url: agent.source_url,
+    requester_name: agent.requester_name,
+    requester_department: agent.requester_department,
+    priority: agent.priority,
+    status: agent.status,
+    owners: agent.assigned_to,
+    current_stage_id: agent.current_stage_id,
+    target_go_live: agent.target_go_live,
+    created_at: agent.created_at,
+    stages: agent.agent_stages.map((row) => {
+      const catalog = demoStages.find((stage) => stage.id === row.stage_id)
+      return {
+        id: row.id,
+        stage_id: row.stage_id,
+        name: catalog?.name ?? row.stage_id,
+        sort_order: catalog?.sort_order ?? 0,
+        status: row.status,
+        expected_duration_days: row.expected_duration_days,
+        actual_start: row.actual_start,
+        actual_end: row.actual_end,
+      }
+    }),
+    substeps: substeps.map((step) => ({
+      id: step.id,
+      agent_stage_id: step.agent_stage_id,
+      name: step.name,
+      sort_order: step.sort_order,
+      status: step.status,
+    })),
+  }
+}
+
+export function usePublicAgent(token: string | undefined) {
+  const [agent, setAgent] = useState<PublicAgent | null>(null)
+  const [loading, setLoading] = useState(Boolean(token))
+  const [error, setError] = useState<string | null>(null)
+
+  const reload = useCallback(async () => {
+    if (!token) {
+      setAgent(null)
+      setLoading(false)
+      return
+    }
+
+    if (isDemoMode) {
+      const match = demoAgents.find((row) => row.public_token === token) ?? null
+      setAgent(
+        match
+          ? toPublicAgent(
+              match,
+              demoAgentSubsteps.filter((row) => row.agent_id === match.id),
+            )
+          : null,
+      )
+      setError(null)
+      setLoading(false)
+      return
+    }
+
+    const { data, error: rpcError } = await supabase.rpc('get_public_agent', {
+      p_token: token,
+    })
+    if (rpcError) {
+      setError(rpcError.message)
+      setAgent(null)
+      setLoading(false)
+      return
+    }
+    setError(null)
+    setAgent(parsePublicAgent(data))
+    setLoading(false)
+  }, [token])
+
+  useEffect(() => {
+    void reload()
+  }, [reload])
+
+  return { agent, loading, error, reload }
 }
 
 export function orderedAgentStages<T extends AgentStage>(

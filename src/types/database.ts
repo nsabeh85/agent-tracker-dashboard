@@ -198,6 +198,7 @@ export type Database = {
           current_stage_id: string
           description: string
           id: string
+          public_token: string
           priority: AgentPriority
           requester_department: string
           requester_name: string
@@ -213,6 +214,7 @@ export type Database = {
           current_stage_id: string
           description?: string
           id?: string
+          public_token?: string
           priority?: AgentPriority
           requester_department: string
           requester_name: string
@@ -228,6 +230,7 @@ export type Database = {
           current_stage_id?: string
           description?: string
           id?: string
+          public_token?: string
           priority?: AgentPriority
           requester_department?: string
           requester_name?: string
@@ -398,6 +401,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_public_agent: {
+        Args: {
+          p_token: string
+        }
+        Returns: Json
+      }
       complete_stage_and_advance: {
         Args: {
           p_agent_id: string

@@ -4,6 +4,7 @@ import { ProgressBar } from '../components/ProgressBar'
 import { ScheduleMarker } from '../components/ScheduleMarker'
 import { CheckIcon } from '../components/StageIcon'
 import { OwnerMultiSelect } from '../components/OwnerMultiSelect'
+import { CopyTrackingLink } from '../components/CopyTrackingLink'
 import {
   orderedAgentStages,
   useAgentDetail,
@@ -168,13 +169,20 @@ export function AgentDetailPage() {
       </section>
 
       {admin ? (
-        <AgentActions
-          agent={agent}
-          rows={rows}
-          owners={owners}
-          departments={departments}
-          onSaved={reload}
-        />
+        <>
+          <AgentActions
+            agent={agent}
+            rows={rows}
+            owners={owners}
+            departments={departments}
+            onSaved={reload}
+          />
+          <CopyTrackingLink
+            token={agent.public_token}
+            title={agent.title}
+            requesterName={agent.requester_name}
+          />
+        </>
       ) : null}
 
       <section className="space-y-3">

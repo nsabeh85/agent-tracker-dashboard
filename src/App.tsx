@@ -6,6 +6,7 @@ import { AgentDetailPage } from './pages/AgentDetail'
 import { DashboardPage } from './pages/Dashboard'
 import { LoginPage } from './pages/Login'
 import { NewAgentPage } from './pages/NewAgent'
+import { PublicTrackPage } from './pages/PublicTrack'
 import { SettingsPage } from './pages/Settings'
 
 export default function App() {
@@ -13,6 +14,7 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+          <Route path="/track/:token" element={<PublicTrackPage />} />
           <Route element={<Layout />}>
             <Route
               path="/"
