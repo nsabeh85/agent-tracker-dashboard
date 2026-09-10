@@ -29,3 +29,8 @@ export function useAuth(): AuthState {
 export function isDigitalRealtyEmail(email: string | null | undefined): boolean {
   return /@digitalrealty\.com$/i.test(email?.trim() ?? '')
 }
+
+/** Only same-origin app paths. Rejects protocol-relative and off-site values. */
+export function safeReturnPath(value: unknown): string {
+  return typeof value === 'string' && value.startsWith('/') && !value.startsWith('//') ? value : '/'
+}

@@ -1,5 +1,5 @@
 -- Seed the global stage and sub-step catalog. Admins must be inserted separately
--- with real emails (see README) so magic-link allowlist matches Auth users.
+-- with real emails (see README) so the allowlist matches Auth users.
 
 INSERT INTO public.stages (name, sort_order, default_duration_days)
 VALUES
