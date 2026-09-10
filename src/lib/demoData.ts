@@ -146,7 +146,7 @@ function buildSubsteps(row: JiraIntake, stages: AgentStageWithOwners[]): AgentSu
   )
 }
 
-export const demoAgents: AgentWithStages[] = JIRA_INTAKE.map((row) => {
+export const demoAgents: AgentWithStages[] = JIRA_INTAKE.map((row, index) => {
   const created = daysAgo(row.created)
   const assignedTo = ownerName(row.assignee)
   return {
@@ -156,6 +156,7 @@ export const demoAgents: AgentWithStages[] = JIRA_INTAKE.map((row) => {
     requester_department: row.department,
     description: agentDescription(row),
     source_url: `https://digitalrealty-cdo.atlassian.net/browse/${row.key}`,
+    public_token: (index + 1).toString(16).padStart(32, '0'),
     priority: 'medium' as AgentPriority,
     current_stage_id: 'stage-1',
     target_go_live: null,

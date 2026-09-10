@@ -36,6 +36,7 @@ function agent({
     assigned_to: 'Example Owner',
     status,
     source_url: null,
+    public_token: 'a'.repeat(32),
     created_at: createdAt,
     updated_at: createdAt,
     agent_owners: [],
