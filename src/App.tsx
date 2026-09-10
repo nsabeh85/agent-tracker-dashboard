@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { RequireAdmin, RequireViewer } from './components/AccessGate'
 import { AuthProvider } from './components/AuthProvider'
 import { Layout } from './components/Layout'
@@ -50,6 +50,8 @@ export default function App() {
             />
             <Route path="/login" element={<LoginPage />} />
           </Route>
+          {/* Without this, a mistyped URL renders an empty page with no explanation. */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

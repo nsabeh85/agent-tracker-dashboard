@@ -229,18 +229,25 @@ export function usePublicAgent(token: string | undefined) {
       return
     }
 
-    const { data, error: rpcError } = await supabase.rpc('get_public_agent', {
-      p_token: token,
-    })
-    if (rpcError) {
-      setError(rpcError.message)
+    try {
+      const { data, error: rpcError } = await supabase.rpc('get_public_agent', {
+        p_token: token,
+      })
+      if (rpcError) {
+        setError(rpcError.message)
+        setAgent(null)
+        return
+      }
+      setError(null)
+      setAgent(parsePublicAgent(data))
+    } catch (cause) {
+      // A rejected request (offline, blocked, DNS) would otherwise leave the
+      // page on its loading skeleton with nothing to explain the failure.
+      setError(cause instanceof Error ? cause.message : 'Could not reach the tracker service.')
       setAgent(null)
+    } finally {
       setLoading(false)
-      return
     }
-    setError(null)
-    setAgent(parsePublicAgent(data))
-    setLoading(false)
   }, [token])
 
   useEffect(() => {
