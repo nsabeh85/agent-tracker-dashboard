@@ -13,3 +13,11 @@ export const supabase = createClient<Database>(
   url || 'https://placeholder.supabase.co',
   anonKey || 'public-anon-key',
 )
+
+/** True when PostgREST has not loaded the named RPC, so the client can fall back. */
+export function isMissingFunctionError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false
+  if (error.code === 'PGRST202' || error.code === '42883') return true
+  const message = error.message?.toLowerCase() ?? ''
+  return message.includes('could not find the function')
+}

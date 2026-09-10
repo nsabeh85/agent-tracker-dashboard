@@ -3,7 +3,8 @@
 
 INSERT INTO public.admins (email, display_name)
 VALUES
-  ('nsabeh@digitalrealty.com', 'Nabih'),
-  ('mseay@digitalrealty.com', 'Mark')
+  ('llawhon@digitalrealty.com', 'Lauren Lawhon'),
+  ('nsabeh@digitalrealty.com', 'Nabih Sabeh'),
+  ('mseay@digitalrealty.com', 'Mark Seay')
 ON CONFLICT (email) DO UPDATE
 SET display_name = EXCLUDED.display_name;

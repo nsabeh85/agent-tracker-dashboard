@@ -54,7 +54,9 @@ export const JIRA_INTAKE: JiraIntake[] = [
 ]
 
 export function ownerName(assignee: string): string {
-  if (assignee === 'Nabih Sabeh') return 'Nabih'
+  if (assignee === 'Nabih') return 'Nabih Sabeh'
+  if (assignee === 'Mark') return 'Mark Seay'
+  if (assignee === 'Lauren') return 'Lauren Lawhon'
   return assignee
 }
 

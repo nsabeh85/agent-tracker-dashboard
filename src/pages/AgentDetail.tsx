@@ -3,13 +3,21 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ProgressBar } from '../components/ProgressBar'
 import { ScheduleMarker } from '../components/ScheduleMarker'
 import { CheckIcon } from '../components/StageIcon'
+import { OwnerMultiSelect } from '../components/OwnerMultiSelect'
+import { CopyTrackingLink } from '../components/CopyTrackingLink'
 import {
   orderedAgentStages,
   useAgentDetail,
   useCatalog,
   useRealtimeTick,
 } from '../hooks/useTracker'
+import { useAuth } from '../lib/auth'
 import {
+  allSubstepsComplete,
+  canAutoAdvance,
+  nextStageAfter,
+  needsGoLiveDate,
+  GO_LIVE_BEFORE_TESTING,
   dueLabel,
   formatDate,
   formatDateTime,
@@ -19,15 +27,21 @@ import {
   statusLabel,
   todayISO,
 } from '../lib/schedule'
-import { supabase } from '../lib/supabase'
+import { descriptionWithoutSource, isHttpsUrl, sourceLabel } from '../lib/sourceLink'
+import { isMissingFunctionError, supabase } from '../lib/supabase'
 import { parseSavingsAmount, savingsLabel } from '../lib/savings'
 import type {
-  Agent,
+  Admin,
   AgentPriority,
   AgentStage,
+  AgentStageWithOwners,
   AgentStatus,
   AgentSubstep,
+  AgentWithStages,
   Comment,
+  Department,
+  Owner,
+  OwnerAssignment,
   ProgressStatus,
   Stage,
 } from '../types/database'
@@ -44,8 +58,10 @@ const STATUS_PILL: Record<ProgressStatus, string> = {
 
 export function AgentDetailPage() {
   const { id } = useParams()
+  const { admin } = useAuth()
   const tick = useRealtimeTick()
-  const { stages } = useCatalog(tick)
+  const { stages, owners: ownerCatalog, departments } = useCatalog(tick)
+  const owners = ownerCatalog.filter((owner) => owner.active)
   const { agent, substeps, comments, loading, error, reload } = useAgentDetail(id, tick)
   const [openStageId, setOpenStageId] = useState<string | null>(null)
   const [stageToggleReady, setStageToggleReady] = useState(false)
@@ -70,6 +86,7 @@ export function AgentDetailPage() {
   const liveSavings = isLiveAgent(agent, stages)
     ? savingsLabel(agent.savings_amount, agent.savings_cadence)
     : null
+  const displayDescription = descriptionWithoutSource(agent.description, agent.source_url)
 
   return (
     <div className="space-y-6">
@@ -105,15 +122,27 @@ export function AgentDetailPage() {
             />
           </div>
 
-          {agent.description ? (
-            <p className="max-w-2xl text-sm leading-relaxed text-white/75">{agent.description}</p>
+          {displayDescription ? (
+            <p className="max-w-2xl text-sm leading-relaxed text-white/75">
+              {displayDescription}
+            </p>
+          ) : null}
+          {agent.source_url ? (
+            <a
+              href={agent.source_url}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-white ring-1 ring-white/20 transition hover:bg-white/20"
+            >
+              Source request: {sourceLabel(agent.source_url)}
+            </a>
           ) : null}
 
           <div className="flex flex-wrap gap-2 text-xs">
             <Chip label="Requester" value={agent.requester_name} />
             <Chip label="Department" value={agent.requester_department} />
             <Chip label="Priority" value={agent.priority} />
-            <Chip label="Owner" value={agent.assigned_to} />
+            <Chip label="Owners" value={ownerNames(agent.agent_owners, agent.assigned_to)} />
             <Chip label="Stage" value={current?.name ?? '—'} />
             <Chip label="Status" value={statusLabel(agent.status)} />
             {liveSavings ? <Chip label="Savings" value={liveSavings} /> : null}
@@ -144,7 +173,22 @@ export function AgentDetailPage() {
         />
       </section>
 
-      <AgentActions agent={agent} rows={rows} onSaved={reload} />
+      {admin ? (
+        <>
+          <AgentActions
+            agent={agent}
+            rows={rows}
+            owners={owners}
+            departments={departments}
+            onSaved={reload}
+          />
+          <CopyTrackingLink
+            token={agent.public_token}
+            title={agent.title}
+            requesterName={agent.requester_name}
+          />
+        </>
+      ) : null}
 
       <section className="space-y-3">
         <h3 className="text-ink-400 px-1 text-xs font-bold tracking-[0.12em] uppercase">
@@ -155,6 +199,12 @@ export function AgentDetailPage() {
             key={row.id}
             row={row}
             position={index + 1}
+            canEdit={Boolean(admin)}
+            owners={owners}
+            agentId={agent.id}
+            currentStageId={agent.current_stage_id}
+            targetGoLive={agent.target_go_live}
+            stageRows={rows}
             substeps={substeps.filter((s) => s.agent_stage_id === row.id)}
             open={openStageId === row.id}
             onToggle={() =>
@@ -169,10 +219,16 @@ export function AgentDetailPage() {
         agentId={agent.id}
         rows={rows}
         comments={comments}
+        author={admin}
         onSaved={reload}
       />
     </div>
   )
+}
+
+function ownerNames(assignments: OwnerAssignment[], fallback = 'Unassigned'): string {
+  const names = assignments.map((assignment) => assignment.owner.full_name)
+  return names.length ? names.join(', ') : fallback
 }
 
 function Chip({ label, value }: { label: string; value: string }) {
@@ -187,13 +243,25 @@ function Chip({ label, value }: { label: string; value: string }) {
 function StageCard({
   row,
   position,
+  canEdit,
+  owners,
+  agentId,
+  currentStageId,
+  targetGoLive,
+  stageRows,
   substeps,
   open,
   onToggle,
   onSaved,
 }: {
-  row: AgentStage & { stage: Stage }
+  row: AgentStageWithOwners & { stage: Stage }
   position: number
+  canEdit: boolean
+  owners: Owner[]
+  agentId: string
+  currentStageId: string
+  targetGoLive: string | null
+  stageRows: Array<AgentStage & { stage: Stage }>
   substeps: AgentSubstep[]
   open: boolean
   onToggle: () => void
@@ -210,6 +278,68 @@ function StageCard({
     else await onSaved()
   }
 
+  async function updateStageOwners(ownerIds: string[]) {
+    const { error } = await supabase.rpc('set_agent_stage_owners', {
+      p_agent_stage_id: row.id,
+      p_owner_ids: ownerIds,
+    })
+    if (error) window.alert(error.message)
+    else await onSaved()
+  }
+
+  /** Completes this current stage and starts the next one, preferring the RPC. */
+  async function completeAndAdvance(itemStatuses = substeps) {
+    if (!canAutoAdvance(row, currentStageId, itemStatuses)) return
+    const next = nextStageAfter(stageRows, row)
+    if (needsGoLiveDate(next?.stage.name, targetGoLive)) {
+      window.alert(GO_LIVE_BEFORE_TESTING)
+      return
+    }
+    const { error } = await supabase.rpc('complete_stage_and_advance', {
+      p_agent_id: agentId,
+      p_agent_stage_id: row.id,
+    })
+    if (!error) {
+      await onSaved()
+      return
+    }
+    if (!isMissingFunctionError(error)) {
+      window.alert(error.message)
+      return
+    }
+
+    const { error: completeError } = await supabase
+      .from('agent_stages')
+      .update({ status: 'complete', actual_end: row.actual_end ?? todayISO() })
+      .eq('id', row.id)
+    if (completeError) {
+      window.alert(completeError.message)
+      return
+    }
+    if (next) {
+      const { error: nextError } = await supabase
+        .from('agent_stages')
+        .update({
+          status: 'in_progress',
+          actual_start: next.actual_start ?? todayISO(),
+        })
+        .eq('id', next.id)
+      if (nextError) {
+        window.alert(nextError.message)
+        return
+      }
+      const { error: agentError } = await supabase
+        .from('agents')
+        .update({ current_stage_id: next.stage_id })
+        .eq('id', agentId)
+      if (agentError) {
+        window.alert(agentError.message)
+        return
+      }
+    }
+    await onSaved()
+  }
+
   async function toggleSubstep(step: AgentSubstep) {
     const next: ProgressStatus = step.status === 'complete' ? 'not_started' : 'complete'
     const { error } = await supabase
@@ -221,8 +351,18 @@ function StageCard({
           next === 'complete' && !step.actual_start ? todayISO() : step.actual_start,
       })
       .eq('id', step.id)
-    if (error) window.alert(error.message)
-    else await onSaved()
+    if (error) {
+      window.alert(error.message)
+      return
+    }
+
+    const settled = substeps.map((s) => (s.id === step.id ? { ...s, status: next } : s))
+    if (next === 'complete' && row.status !== 'complete' && allSubstepsComplete(settled)) {
+      await completeAndAdvance(settled)
+      return
+    }
+
+    await onSaved()
   }
 
   return (
@@ -261,6 +401,9 @@ function StageCard({
           <span className="text-ink-400 block text-xs">
             {substeps.length > 0 ? `${done}/${substeps.length} steps done` : 'No sub-steps'}
             {row.actual_start ? ` · started ${formatDate(row.actual_start)}` : ''}
+            {row.agent_stage_owners.length > 0
+              ? ` · ${ownerNames(row.agent_stage_owners)}`
+              : ''}
           </span>
         </span>
 
@@ -288,11 +431,12 @@ function StageCard({
 
       {open ? (
         <div className="border-ink-100 dark:border-ink-800 space-y-5 border-t px-4 py-4 md:px-5">
-          <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-5">
             <Field label="Expected days">
               <input
                 type="number"
                 min={0}
+                disabled={!canEdit}
                 defaultValue={row.expected_duration_days}
                 className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
                 onBlur={(e) => {
@@ -306,6 +450,7 @@ function StageCard({
             <Field label="Actual start">
               <input
                 type="date"
+                disabled={!canEdit}
                 defaultValue={row.actual_start ?? ''}
                 className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
                 onBlur={(e) => {
@@ -317,6 +462,7 @@ function StageCard({
             <Field label="Actual end">
               <input
                 type="date"
+                disabled={!canEdit}
                 defaultValue={row.actual_end ?? ''}
                 className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
                 onBlur={(e) => {
@@ -328,10 +474,25 @@ function StageCard({
             <Field label="Status">
               <select
                 value={row.status}
+                disabled={!canEdit}
                 className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
-                onChange={(e) =>
-                  void updateStage({ status: e.target.value as ProgressStatus })
-                }
+                onChange={(e) => {
+                  const status = e.target.value as ProgressStatus
+                  if (status !== 'complete') {
+                    void updateStage({ status })
+                    return
+                  }
+                  if (!allSubstepsComplete(substeps)) {
+                    window.alert(
+                      substeps.length === 0
+                        ? 'A stage with no items cannot auto-advance. Use Advance stage to move on.'
+                        : 'Mark every item in this stage complete before the tracker can move on.',
+                    )
+                    return
+                  }
+                  if (row.stage_id === currentStageId) void completeAndAdvance()
+                  else void updateStage({ status: 'complete', actual_end: row.actual_end ?? todayISO() })
+                }}
               >
                 <option value="not_started">Not started</option>
                 <option value="in_progress">In progress</option>
@@ -339,6 +500,14 @@ function StageCard({
                 <option value="blocked">Blocked</option>
               </select>
             </Field>
+            <FieldGroup label="Stage owners">
+              <OwnerMultiSelect
+                owners={owners}
+                selectedIds={row.agent_stage_owners.map((assignment) => assignment.owner_id)}
+                onChange={(ownerIds) => void updateStageOwners(ownerIds)}
+                disabled={!canEdit}
+              />
+            </FieldGroup>
           </div>
 
           <ul className="space-y-1">
@@ -357,6 +526,7 @@ function StageCard({
                 >
                   <button
                     type="button"
+                    disabled={!canEdit}
                     onClick={() => void toggleSubstep(step)}
                     aria-pressed={stepDone}
                     aria-label={`Mark ${step.name} ${stepDone ? 'not done' : 'done'}`}
@@ -407,24 +577,47 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
+function FieldGroup({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div>
+      <span className="text-ink-400 text-[10px] font-bold tracking-[0.12em] uppercase">
+        {label}
+      </span>
+      <span className="text-ink-800 dark:text-ink-100 mt-1 block text-sm">{children}</span>
+    </div>
+  )
+}
+
 function AgentActions({
   agent,
   rows,
+  owners,
+  departments,
   onSaved,
 }: {
-  agent: Agent
-  rows: Array<AgentStage & { stage: Stage }>
+  agent: AgentWithStages
+  rows: Array<AgentStageWithOwners & { stage: Stage }>
+  owners: Owner[]
+  departments: Department[]
   onSaved: () => Promise<void>
 }) {
   const navigate = useNavigate()
   const [editing, setEditing] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [ownerIds, setOwnerIds] = useState(() =>
+    agent.agent_owners.map((assignment) => assignment.owner_id),
+  )
   const index = rows.findIndex((r) => r.stage_id === agent.current_stage_id)
 
   async function setCurrent(nextIndex: number) {
     const next = rows[nextIndex]
     const current = rows[index]
     if (!next) return
+
+    if (nextIndex > index && needsGoLiveDate(next.stage.name, agent.target_go_live)) {
+      window.alert(GO_LIVE_BEFORE_TESTING)
+      return
+    }
 
     if (current && nextIndex > index) {
       await supabase
@@ -473,15 +666,24 @@ function AgentActions({
 
   async function saveDetails(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (ownerIds.length === 0) {
+      window.alert('Select at least one owner.')
+      return
+    }
     const form = new FormData(event.currentTarget)
     const goLive = String(form.get('target_go_live') ?? '')
+    const sourceUrl = String(form.get('source_url') ?? '').trim()
+    if (!isHttpsUrl(sourceUrl)) {
+      window.alert('Source request must be a valid HTTPS URL.')
+      return
+    }
     const savings = parseSavingsAmount(String(form.get('savings_amount') ?? ''))
     if (savings === 'invalid') {
       window.alert('Money saved must be a number 0 or greater.')
       return
     }
     setBusy(true)
-    const { error } = await supabase
+    const { error: detailError } = await supabase
       .from('agents')
       .update({
         title: String(form.get('title') ?? '').trim(),
@@ -489,18 +691,28 @@ function AgentActions({
         requester_department: String(form.get('requester_department') ?? '').trim(),
         description: String(form.get('description') ?? '').trim(),
         priority: String(form.get('priority') ?? 'medium') as AgentPriority,
-        assigned_to: String(form.get('assigned_to') ?? '').trim(),
+        source_url: sourceUrl || null,
         target_go_live: goLive || null,
         savings_amount: savings,
         savings_cadence: String(form.get('savings_cadence') ?? 'yearly') === 'monthly' ? 'monthly' : 'yearly',
       })
       .eq('id', agent.id)
-    setBusy(false)
-    if (error) window.alert(error.message)
-    else {
-      setEditing(false)
-      await onSaved()
+    if (detailError) {
+      setBusy(false)
+      window.alert(detailError.message)
+      return
     }
+    const { error: ownerError } = await supabase.rpc('set_agent_owners', {
+      p_agent_id: agent.id,
+      p_owner_ids: ownerIds,
+    })
+    setBusy(false)
+    if (ownerError) {
+      window.alert(ownerError.message)
+      return
+    }
+    setEditing(false)
+    await onSaved()
   }
 
   async function deleteAgent() {
@@ -541,7 +753,10 @@ function AgentActions({
           type="button"
           aria-expanded={editing}
           className="border-ink-200 text-ink-700 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-200 rounded-full border bg-white px-3.5 py-1.5 text-sm font-semibold transition hover:-translate-y-0.5"
-          onClick={() => setEditing((open) => !open)}
+          onClick={() => {
+            setOwnerIds(agent.agent_owners.map((assignment) => assignment.owner_id))
+            setEditing((open) => !open)
+          }}
         >
           {editing ? 'Close editor' : 'Edit details'}
         </button>
@@ -578,13 +793,36 @@ function AgentActions({
             defaultValue={agent.requester_name}
             required
           />
-          <EditField
-            label="Department"
-            name="requester_department"
-            defaultValue={agent.requester_department}
-            required
-          />
-          <EditField label="Owner" name="assigned_to" defaultValue={agent.assigned_to} required />
+          <Field label="Department">
+            <select
+              name="requester_department"
+              defaultValue={agent.requester_department}
+              required
+              className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
+            >
+              {!departments.some(
+                (department) =>
+                  department.active && department.name === agent.requester_department,
+              ) ? (
+                <option value={agent.requester_department}>{agent.requester_department}</option>
+              ) : null}
+              {departments
+                .filter((department) => department.active)
+                .map((department) => (
+                  <option key={department.id} value={department.name}>
+                    {department.name}
+                  </option>
+                ))}
+            </select>
+          </Field>
+          <FieldGroup label="Owners">
+            <OwnerMultiSelect
+              owners={owners}
+              selectedIds={ownerIds}
+              onChange={setOwnerIds}
+              required
+            />
+          </FieldGroup>
           <Field label="Priority">
             <select
               name="priority"
@@ -635,6 +873,17 @@ function AgentActions({
               />
             </Field>
           </div>
+          <div className="sm:col-span-2">
+            <Field label="Source request link">
+              <input
+                type="url"
+                name="source_url"
+                defaultValue={agent.source_url ?? ''}
+                placeholder="https://digitalrealty-cdo.atlassian.net/browse/PCT-123"
+                className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
+              />
+            </Field>
+          </div>
           <div className="flex items-center gap-2 sm:col-span-2">
             <button
               type="submit"
@@ -680,54 +929,32 @@ function EditField({
   )
 }
 
-const COMMENT_NAME_KEY = 'agent-tracker-comment-name'
-const COMMENT_EMAIL_KEY = 'agent-tracker-comment-email'
-
-function readStored(key: string): string {
-  try {
-    return window.localStorage.getItem(key) ?? ''
-  } catch {
-    return ''
-  }
-}
-
-function writeStored(key: string, value: string) {
-  try {
-    window.localStorage.setItem(key, value)
-  } catch {
-    // Storage can be blocked.
-  }
-}
-
 function CommentThread({
   agentId,
   rows,
   comments,
+  author,
   onSaved,
 }: {
   agentId: string
   rows: Array<AgentStage & { stage: Stage }>
   comments: Comment[]
+  author: Admin | null
   onSaved: () => Promise<void>
 }) {
   const [body, setBody] = useState('')
-  const [authorName, setAuthorName] = useState(() => readStored(COMMENT_NAME_KEY))
-  const [authorEmail, setAuthorEmail] = useState(() => readStored(COMMENT_EMAIL_KEY))
   const [stageId, setStageId] = useState('')
   const [saving, setSaving] = useState(false)
 
   async function submit(e: FormEvent) {
     e.preventDefault()
-    const name = authorName.trim()
-    if (!name || !body.trim()) return
-    writeStored(COMMENT_NAME_KEY, name)
-    writeStored(COMMENT_EMAIL_KEY, authorEmail.trim())
+    if (!author || !body.trim()) return
     setSaving(true)
     const { error } = await supabase.from('comments').insert({
       agent_id: agentId,
       agent_stage_id: stageId || null,
-      author_email: authorEmail.trim() || 'anonymous',
-      author_name: name,
+      author_email: author.email,
+      author_name: author.display_name,
       body: body.trim(),
     })
     setSaving(false)
@@ -747,27 +974,11 @@ function CommentThread({
         Comments
       </h3>
 
-      <form
-        onSubmit={(e) => void submit(e)}
-        className="border-ink-200/80 dark:border-ink-800 dark:bg-ink-900 space-y-3 rounded-2xl border bg-white p-4 shadow-sm"
-      >
-        <div className="grid gap-2 sm:grid-cols-2">
-          <input
-            type="text"
-            required
-            value={authorName}
-            onChange={(e) => setAuthorName(e.target.value)}
-            placeholder="Your name"
-            className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:text-ink-100 w-full rounded-xl border px-3 py-2 text-sm outline-none"
-          />
-          <input
-            type="email"
-            value={authorEmail}
-            onChange={(e) => setAuthorEmail(e.target.value)}
-            placeholder="Email (optional)"
-            className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:text-ink-100 w-full rounded-xl border px-3 py-2 text-sm outline-none"
-          />
-        </div>
+      {author ? (
+        <form
+          onSubmit={(e) => void submit(e)}
+          className="border-ink-200/80 dark:border-ink-800 dark:bg-ink-900 space-y-3 rounded-2xl border bg-white p-4 shadow-sm"
+        >
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
@@ -790,13 +1001,16 @@ function CommentThread({
           </select>
           <button
             type="submit"
-            disabled={saving || !body.trim() || !authorName.trim()}
+            disabled={saving || !body.trim()}
             className="bg-ink-900 hover:bg-ink-800 dark:bg-brand-600 dark:hover:bg-brand-500 ml-auto rounded-full px-4 py-1.5 text-sm font-semibold text-white transition disabled:opacity-40"
           >
             {saving ? 'Posting…' : 'Post update'}
           </button>
         </div>
-      </form>
+        </form>
+      ) : (
+        <p className="text-ink-400 px-1 text-sm">Comments are read-only.</p>
+      )}
 
       <ul className="space-y-2">
         {comments.map((comment) => (

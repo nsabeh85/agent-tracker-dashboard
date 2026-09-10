@@ -38,10 +38,13 @@ function agent({
     target_go_live: null,
     assigned_to: 'Nabih Sabeh',
     status: 'active',
+    source_url: null,
+    public_token: 'a'.repeat(32),
     created_at: '2026-09-01T00:00:00Z',
     updated_at: '2026-09-01T00:00:00Z',
     savings_amount: amount,
     savings_cadence: cadence,
+    agent_owners: [],
     agent_stages: [],
   }
 }

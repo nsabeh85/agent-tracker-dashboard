@@ -1,13 +1,149 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useCatalog, useRealtimeTick } from '../hooks/useTracker'
+import { isDigitalRealtyEmail, useAuth } from '../lib/auth'
 import { supabase } from '../lib/supabase'
-import type { Stage, Substep } from '../types/database'
+import type { Department, Owner, Stage, Substep } from '../types/database'
+
+function isFullName(name: string): boolean {
+  return /^\S+(?:\s+\S+)+$/.test(name)
+}
 
 export function SettingsPage() {
   const tick = useRealtimeTick()
-  const { stages, substeps, reload } = useCatalog(tick)
+  const { stages, substeps, owners, departments, error: catalogError, reload } = useCatalog(tick)
+  const { admin, admins, reloadAdmins } = useAuth()
   const [error, setError] = useState<string | null>(null)
+
+  async function addAdmin() {
+    const email = window.prompt('Admin @digitalrealty.com email')
+    if (!email?.trim()) return
+    const normalizedEmail = email.trim().toLowerCase()
+    if (!isDigitalRealtyEmail(normalizedEmail)) {
+      setError('Administrators must use an @digitalrealty.com email address.')
+      return
+    }
+    const displayName = window.prompt('Admin full name (first and last)')
+    if (!displayName?.trim() || !/^\S+(?:\s+\S+)+$/.test(displayName.trim())) {
+      setError('Enter both a first and last name.')
+      return
+    }
+    const { error: adminError } = await supabase.from('admins').upsert({
+      email: normalizedEmail,
+      display_name: displayName.trim().replace(/\s+/g, ' '),
+    })
+    if (adminError) setError(adminError.message)
+    else {
+      setError(null)
+      await reloadAdmins()
+    }
+  }
+
+  async function removeAdmin(email: string) {
+    if (email.toLowerCase() === admin?.email.toLowerCase()) {
+      setError('You cannot remove your own administrator access.')
+      return
+    }
+    if (!window.confirm(`Remove administrator access for ${email}?`)) return
+    const { error: adminError } = await supabase.from('admins').delete().eq('email', email)
+    if (adminError) setError(adminError.message)
+    else {
+      setError(null)
+      await reloadAdmins()
+    }
+  }
+
+  async function addOwner() {
+    const fullName = window.prompt('Owner full name (first and last)')
+    if (!fullName?.trim()) return
+    const normalized = fullName.trim().replace(/\s+/g, ' ')
+    if (!isFullName(normalized)) {
+      setError('Enter both a first and last name.')
+      return
+    }
+    const { error: insertError } = await supabase.rpc('create_owner', {
+      p_full_name: normalized,
+    })
+    if (insertError) setError(insertError.message)
+    else {
+      setError(null)
+      await reload()
+    }
+  }
+
+  async function addDepartment() {
+    const name = window.prompt('Department name')
+    if (!name?.trim()) return
+    const normalized = name.trim().replace(/\s+/g, ' ')
+    const nextOrder =
+      departments.reduce((max, department) => Math.max(max, department.sort_order), 0) + 1
+    const { error: insertError } = await supabase
+      .from('departments')
+      .insert({ name: normalized, sort_order: nextOrder })
+    if (insertError) setError(insertError.message)
+    else {
+      setError(null)
+      await reload()
+    }
+  }
+
+  async function renameOwner(owner: Owner) {
+    const fullName = window.prompt('Owner full name (first and last)', owner.full_name)
+    if (!fullName?.trim()) return
+    const normalized = fullName.trim().replace(/\s+/g, ' ')
+    if (!isFullName(normalized)) {
+      setError('Enter both a first and last name.')
+      return
+    }
+    const { error: updateError } = await supabase.rpc('rename_owner', {
+      p_owner_id: owner.id,
+      p_full_name: normalized,
+    })
+    if (updateError) setError(updateError.message)
+    else {
+      setError(null)
+      await reload()
+    }
+  }
+
+  async function renameDepartment(department: Department) {
+    const name = window.prompt('Department name', department.name)
+    if (!name?.trim()) return
+    const normalized = name.trim().replace(/\s+/g, ' ')
+    const { error: updateError } = await supabase
+      .from('departments')
+      .update({ name: normalized })
+      .eq('id', department.id)
+    if (updateError) setError(updateError.message)
+    else {
+      setError(null)
+      await reload()
+    }
+  }
+
+  async function setOwnerActive(owner: Owner, active: boolean) {
+    const { error: updateError } = await supabase.rpc('set_owner_active', {
+      p_owner_id: owner.id,
+      p_active: active,
+    })
+    if (updateError) setError(updateError.message)
+    else {
+      setError(null)
+      await reload()
+    }
+  }
+
+  async function setDepartmentActive(department: Department, active: boolean) {
+    const { error: updateError } = await supabase
+      .from('departments')
+      .update({ active })
+      .eq('id', department.id)
+    if (updateError) setError(updateError.message)
+    else {
+      setError(null)
+      await reload()
+    }
+  }
 
   async function moveStage(stage: Stage, direction: -1 | 1) {
     const ordered = [...stages].sort((a, b) => a.sort_order - b.sort_order)
@@ -148,10 +284,152 @@ export function SettingsPage() {
           Settings
         </h2>
         <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">
-          Manage the stage and sub-step catalog used when a new request is created.
+          Manage owners, departments, administrators, and the stage catalog used when a new request is created.
         </p>
       </div>
-      {error ? <p className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}
+      {error || catalogError ? (
+        <p className="text-sm text-red-600 dark:text-red-400">{error ?? catalogError}</p>
+      ) : null}
+
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold tracking-wide text-ink-400 uppercase">
+              Owners
+            </h3>
+            <p className="mt-1 text-xs text-ink-500 dark:text-ink-400">
+              Inactive owners remain on historical requests but disappear from dropdowns.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void addOwner()}
+            className="text-sm font-semibold text-brand-700 dark:text-brand-300"
+          >
+            Add owner
+          </button>
+        </div>
+        <ul className="divide-y divide-ink-100 overflow-hidden rounded-2xl border border-ink-200 bg-white dark:divide-ink-800 dark:border-ink-800 dark:bg-ink-900">
+          {owners.map((owner) => (
+            <li key={owner.id} className="flex items-center gap-3 px-4 py-3">
+              <span className="flex-1 text-sm font-medium text-ink-900 dark:text-ink-50">
+                {owner.full_name}
+              </span>
+              <span className="text-xs text-ink-400">
+                {owner.active ? 'Active' : 'Inactive'}
+              </span>
+              <button
+                type="button"
+                className="text-xs text-ink-500 dark:text-ink-400"
+                onClick={() => void renameOwner(owner)}
+              >
+                Rename
+              </button>
+              <button
+                type="button"
+                className={
+                  owner.active
+                    ? 'text-xs text-red-500 dark:text-red-400'
+                    : 'text-xs text-brand-700 dark:text-brand-300'
+                }
+                onClick={() => void setOwnerActive(owner, !owner.active)}
+              >
+                {owner.active ? 'Deactivate' : 'Reactivate'}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold tracking-wide text-ink-400 uppercase">
+              Departments
+            </h3>
+            <p className="mt-1 text-xs text-ink-500 dark:text-ink-400">
+              Inactive departments remain on historical requests but disappear from forms.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void addDepartment()}
+            className="text-sm font-semibold text-brand-700 dark:text-brand-300"
+          >
+            Add department
+          </button>
+        </div>
+        <ul className="divide-y divide-ink-100 overflow-hidden rounded-2xl border border-ink-200 bg-white dark:divide-ink-800 dark:border-ink-800 dark:bg-ink-900">
+          {departments.map((department) => (
+            <li key={department.id} className="flex items-center gap-3 px-4 py-3">
+              <span className="flex-1 text-sm font-medium text-ink-900 dark:text-ink-50">
+                {department.name}
+              </span>
+              <span className="text-xs text-ink-400">
+                {department.active ? 'Active' : 'Inactive'}
+              </span>
+              <button
+                type="button"
+                className="text-xs text-ink-500 dark:text-ink-400"
+                onClick={() => void renameDepartment(department)}
+              >
+                Rename
+              </button>
+              <button
+                type="button"
+                className={
+                  department.active
+                    ? 'text-xs text-red-500 dark:text-red-400'
+                    : 'text-xs text-brand-700 dark:text-brand-300'
+                }
+                onClick={() => void setDepartmentActive(department, !department.active)}
+              >
+                {department.active ? 'Deactivate' : 'Reactivate'}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-ink-400 text-sm font-semibold tracking-wide uppercase">
+              Administrators
+            </h3>
+            <p className="text-ink-500 dark:text-ink-400 mt-1 text-xs">
+              Administrators can edit all tracker data and manage this list.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void addAdmin()}
+            className="text-brand-700 dark:text-brand-300 text-sm font-semibold"
+          >
+            Add administrator
+          </button>
+        </div>
+        <ul className="divide-ink-100 border-ink-200 dark:divide-ink-800 dark:border-ink-800 dark:bg-ink-900 divide-y overflow-hidden rounded-2xl border bg-white">
+          {admins.map((entry) => (
+            <li key={entry.email} className="flex items-center gap-3 px-4 py-3">
+              <span className="min-w-0 flex-1">
+                <span className="text-ink-900 dark:text-ink-50 block text-sm font-medium">
+                  {entry.display_name}
+                </span>
+                <span className="text-ink-400 block truncate text-xs">{entry.email}</span>
+              </span>
+              <button
+                type="button"
+                disabled={entry.email.toLowerCase() === admin?.email.toLowerCase()}
+                onClick={() => void removeAdmin(entry.email)}
+                className="text-xs text-red-500 disabled:cursor-not-allowed disabled:opacity-35 dark:text-red-400"
+              >
+                Remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       <section className="space-y-4">
         <div className="flex items-center justify-between">

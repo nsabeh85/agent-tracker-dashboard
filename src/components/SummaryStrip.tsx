@@ -6,11 +6,14 @@ import {
   isLiveAgent,
 } from '../lib/schedule'
 import { formatUsd, totalLiveAnnualSavings } from '../lib/savings'
+import type { DashboardMetric } from '../lib/dashboard'
 import type { AgentWithStages, Stage } from '../types/database'
 
 type Props = {
   agents: AgentWithStages[]
   stages: Stage[]
+  activeMetric: DashboardMetric | null
+  onMetricChange: (metric: DashboardMetric | null) => void
 }
 
 type Tone = 'brand' | 'emerald' | 'amber' | 'plain'
@@ -27,15 +30,29 @@ function Tile({
   value,
   tone,
   icon,
+  active,
+  onClick,
 }: {
   label: string
   value: number
   tone: Tone
   icon: ReactNode
+  active: boolean
+  onClick: () => void
 }) {
   const styles = TONES[tone]
   return (
-    <div className="rounded-2xl bg-white/10 p-4 ring-1 ring-white/15 backdrop-blur-sm transition hover:bg-white/15">
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={[
+        'rounded-2xl p-4 text-left backdrop-blur-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white',
+        active
+          ? 'bg-white/25 ring-2 ring-white shadow-lg'
+          : 'bg-white/10 ring-1 ring-white/15 hover:bg-white/15',
+      ].join(' ')}
+    >
       <span
         className={`mb-3 inline-flex h-9 w-9 items-center justify-center rounded-xl ${styles.badge}`}
       >
@@ -43,11 +60,11 @@ function Tile({
       </span>
       <p className={`text-3xl leading-none font-bold tracking-tight ${styles.value}`}>{value}</p>
       <p className="mt-1.5 text-xs font-semibold tracking-wide text-white/70 uppercase">{label}</p>
-    </div>
+    </button>
   )
 }
 
-export function SummaryStrip({ agents, stages }: Props) {
+export function SummaryStrip({ agents, stages, activeMetric, onMetricChange }: Props) {
   const pending = agents.filter((a) => a.status === 'pending_approval').length
   const inFlight = agents.filter((a) => isInFlight(a, stages)).length
   const live = agents.filter((a) => isLiveAgent(a, stages)).length
@@ -72,6 +89,8 @@ export function SummaryStrip({ agents, stages }: Props) {
             label="Pending approval"
             value={pending}
             tone="amber"
+            active={activeMetric === 'pending'}
+            onClick={() => onMetricChange(activeMetric === 'pending' ? null : 'pending')}
             icon={
               <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden>
                 <path
@@ -85,6 +104,8 @@ export function SummaryStrip({ agents, stages }: Props) {
             label="In flight"
             value={inFlight}
             tone="brand"
+            active={activeMetric === 'in_flight'}
+            onClick={() => onMetricChange(activeMetric === 'in_flight' ? null : 'in_flight')}
             icon={
               <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden>
                 <path
@@ -98,6 +119,8 @@ export function SummaryStrip({ agents, stages }: Props) {
             label="Live"
             value={live}
             tone="emerald"
+            active={activeMetric === 'live'}
+            onClick={() => onMetricChange(activeMetric === 'live' ? null : 'live')}
             icon={
               <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden>
                 <path
@@ -115,6 +138,8 @@ export function SummaryStrip({ agents, stages }: Props) {
             label="Behind schedule"
             value={behind}
             tone="amber"
+            active={activeMetric === 'behind'}
+            onClick={() => onMetricChange(activeMetric === 'behind' ? null : 'behind')}
             icon={
               <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden>
                 <path fill="currentColor" d="M12 2 1 21h22L12 2Zm1 7v6h-2V9h2Zm0 8v2h-2v-2h2Z" />
@@ -125,6 +150,8 @@ export function SummaryStrip({ agents, stages }: Props) {
             label="Requests this month"
             value={thisMonth}
             tone="plain"
+            active={activeMetric === 'this_month'}
+            onClick={() => onMetricChange(activeMetric === 'this_month' ? null : 'this_month')}
             icon={
               <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden>
                 <path
