@@ -9,6 +9,7 @@ export type Json =
 export type AgentPriority = 'low' | 'medium' | 'high'
 export type AgentStatus = 'pending_approval' | 'active' | 'on_hold' | 'cancelled' | 'complete'
 export type ProgressStatus = 'not_started' | 'in_progress' | 'complete' | 'blocked'
+export type SavingsCadence = 'monthly' | 'yearly'
 
 export type Database = {
   public: {
@@ -202,6 +203,8 @@ export type Database = {
           priority: AgentPriority
           requester_department: string
           requester_name: string
+          savings_amount: number | null
+          savings_cadence: SavingsCadence
           source_url: string | null
           status: AgentStatus
           target_go_live: string | null
@@ -218,6 +221,8 @@ export type Database = {
           priority?: AgentPriority
           requester_department: string
           requester_name: string
+          savings_amount?: number | null
+          savings_cadence?: SavingsCadence
           source_url?: string | null
           status?: AgentStatus
           target_go_live?: string | null
@@ -234,6 +239,8 @@ export type Database = {
           priority?: AgentPriority
           requester_department?: string
           requester_name?: string
+          savings_amount?: number | null
+          savings_cadence?: SavingsCadence
           source_url?: string | null
           status?: AgentStatus
           target_go_live?: string | null
@@ -490,6 +497,7 @@ export type Database = {
       agent_priority: AgentPriority
       agent_status: AgentStatus
       progress_status: ProgressStatus
+      savings_cadence: SavingsCadence
     }
     CompositeTypes: {
       [_ in never]: never

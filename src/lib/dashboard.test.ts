@@ -37,6 +37,8 @@ function agent({
     status,
     source_url: null,
     public_token: 'a'.repeat(32),
+    savings_amount: null,
+    savings_cadence: 'yearly',
     created_at: createdAt,
     updated_at: createdAt,
     agent_owners: [],

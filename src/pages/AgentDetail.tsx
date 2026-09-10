@@ -29,6 +29,7 @@ import {
 } from '../lib/schedule'
 import { descriptionWithoutSource, isHttpsUrl, sourceLabel } from '../lib/sourceLink'
 import { isMissingFunctionError, supabase } from '../lib/supabase'
+import { parseSavingsAmount, savingsLabel } from '../lib/savings'
 import type {
   Admin,
   AgentPriority,
@@ -82,6 +83,9 @@ export function AgentDetailPage() {
   if (!agent) return <p className="text-ink-500 text-sm">Agent not found.</p>
 
   const current = stages.find((s) => s.id === agent.current_stage_id)
+  const liveSavings = isLiveAgent(agent, stages)
+    ? savingsLabel(agent.savings_amount, agent.savings_cadence)
+    : null
   const displayDescription = descriptionWithoutSource(agent.description, agent.source_url)
 
   return (
@@ -141,6 +145,7 @@ export function AgentDetailPage() {
             <Chip label="Owners" value={ownerNames(agent.agent_owners, agent.assigned_to)} />
             <Chip label="Stage" value={current?.name ?? '—'} />
             <Chip label="Status" value={statusLabel(agent.status)} />
+            {liveSavings ? <Chip label="Savings" value={liveSavings} /> : null}
           </div>
         </div>
       </header>
@@ -672,6 +677,11 @@ function AgentActions({
       window.alert('Source request must be a valid HTTPS URL.')
       return
     }
+    const savings = parseSavingsAmount(String(form.get('savings_amount') ?? ''))
+    if (savings === 'invalid') {
+      window.alert('Money saved must be a number 0 or greater.')
+      return
+    }
     setBusy(true)
     const { error: detailError } = await supabase
       .from('agents')
@@ -683,6 +693,8 @@ function AgentActions({
         priority: String(form.get('priority') ?? 'medium') as AgentPriority,
         source_url: sourceUrl || null,
         target_go_live: goLive || null,
+        savings_amount: savings,
+        savings_cadence: String(form.get('savings_cadence') ?? 'yearly') === 'monthly' ? 'monthly' : 'yearly',
       })
       .eq('id', agent.id)
     if (detailError) {
@@ -829,6 +841,27 @@ function AgentActions({
               defaultValue={agent.target_go_live ?? ''}
               className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
             />
+          </Field>
+          <Field label="Money saved">
+            <input
+              type="number"
+              name="savings_amount"
+              min={0}
+              step="0.01"
+              defaultValue={agent.savings_amount ?? ''}
+              placeholder="e.g. 12000"
+              className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
+            />
+          </Field>
+          <Field label="Savings period">
+            <select
+              name="savings_cadence"
+              defaultValue={agent.savings_cadence}
+              className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
+            >
+              <option value="yearly">Yearly</option>
+              <option value="monthly">Monthly</option>
+            </select>
           </Field>
           <div className="sm:col-span-2">
             <Field label="Description">

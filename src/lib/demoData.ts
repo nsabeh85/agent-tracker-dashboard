@@ -162,12 +162,35 @@ export const demoAgents: AgentWithStages[] = JIRA_INTAKE.map((row, index) => {
     target_go_live: null,
     assigned_to: assignedTo,
     status: 'pending_approval',
+    savings_amount: null,
+    savings_cadence: 'yearly',
     created_at: stamp(-created),
     updated_at: stamp(-created),
     agent_stages: buildStages(row),
     agent_owners: ownerAssignments(assignedTo),
   }
 })
+
+const DEMO_SAVINGS: Array<{
+  index: number
+  amount: number
+  cadence: 'monthly' | 'yearly'
+  live: boolean
+}> = [
+  { index: 0, amount: 18000, cadence: 'yearly', live: true },
+  { index: 1, amount: 2500, cadence: 'monthly', live: true },
+  { index: 2, amount: 8000, cadence: 'yearly', live: false },
+]
+for (const row of DEMO_SAVINGS) {
+  const agent = demoAgents[row.index]
+  if (!agent) continue
+  agent.savings_amount = row.amount
+  agent.savings_cadence = row.cadence
+  if (row.live) {
+    agent.current_stage_id = 'stage-5'
+    agent.status = 'active'
+  }
+}
 
 export const demoAgentSubsteps: AgentSubstep[] = JIRA_INTAKE.flatMap((row) => {
   const stages = demoAgents.find((agent) => agent.id === row.key.toLowerCase())?.agent_stages ?? []
