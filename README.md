@@ -1,7 +1,8 @@
 # Copilot Studio Agent Tracker
 
 Shared status dashboard for Copilot Studio agent requests. Digital Realty employees sign in
-with a magic link to view requests. Administrators can also update tracker data and settings.
+with email and password to view requests. Administrators can also update tracker data and
+settings. Microsoft Entra ID is the planned replacement for passwords.
 
 ## Stack
 
@@ -20,8 +21,21 @@ cp .env.example .env
 
 Fill in `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` from **Project Settings → API**.
 
-In Supabase **Authentication → URL Configuration**, set the production site URL and add local
-and preview URLs that may receive magic-link redirects. Email authentication must be enabled.
+In Supabase **Authentication → Providers → Email**, enable email sign-in. Turn **Confirm
+email** off for this password stopgap so new accounts can sign in without a confirmation
+message (the built-in mailer is rate-limited and only delivers to project members).
+
+Create each user in **Authentication → Users → Add user → Create user** (not **Send
+invitation**). Invitation only emails a magic link and never asks for a password. Use their
+`@digitalrealty.com` address, a password you share out of band, and **Auto Confirm User**. If
+you already invited someone, delete that Auth user if they never signed in, then create them
+again with a password.
+
+Do not put passwords in git, SQL, or GitHub secrets. There is no self-serve sign-up; only
+accounts you create can sign in. Share links (`/track/:token`) still work without an account.
+
+In **Authentication → URL Configuration**, set the production site URL (needed later for
+Microsoft sign-in). Email/password does not use a redirect.
 
 ```bash
 npm install
