@@ -1,9 +1,12 @@
 import type {
   AgentPriority,
-  AgentStage,
+  AgentStageWithOwners,
   AgentSubstep,
   AgentWithStages,
   Comment,
+  Department,
+  Owner,
+  OwnerAssignment,
   Stage,
   Substep,
 } from '../types/database'
@@ -65,13 +68,55 @@ export const demoSubsteps: Substep[] = CATALOG.flatMap((stage, index) =>
   })),
 )
 
+export const demoOwners: Owner[] = [
+  {
+    id: 'owner-lauren',
+    full_name: 'Lauren Lawhon',
+    active: true,
+    sort_order: 1,
+    created_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'owner-nabih',
+    full_name: 'Nabih Sabeh',
+    active: true,
+    sort_order: 2,
+    created_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'owner-mark',
+    full_name: 'Mark Seay',
+    active: true,
+    sort_order: 3,
+    created_at: '2026-01-01T00:00:00Z',
+  },
+]
+
+function ownerAssignments(name: string): OwnerAssignment[] {
+  const owner = demoOwners.find((candidate) => candidate.full_name === name)
+  return owner ? [{ owner_id: owner.id, owner }] : []
+}
+
+export const demoDepartments: Department[] = [
+  ...new Set(JIRA_INTAKE.map((row) => row.department)),
+]
+  .sort()
+  .map((name, index) => ({
+    id: `department-${index + 1}`,
+    name,
+    active: true,
+    sort_order: index + 1,
+    created_at: '2026-01-01T00:00:00Z',
+  }))
+
 function daysAgo(isoDate: string): number {
   const created = new Date(`${isoDate}T12:00:00`)
   return Math.max(0, Math.round((Date.now() - created.getTime()) / DAY_MS))
 }
 
-function buildStages(row: JiraIntake): AgentStage[] {
+function buildStages(row: JiraIntake): AgentStageWithOwners[] {
   const id = row.key.toLowerCase()
+  const assignments = ownerAssignments(ownerName(row.assignee))
   return CATALOG.map((stage, index) => ({
     id: `${id}-st-${index + 1}`,
     agent_id: id,
@@ -80,10 +125,11 @@ function buildStages(row: JiraIntake): AgentStage[] {
     actual_start: null,
     actual_end: null,
     status: 'not_started' as const,
+    agent_stage_owners: assignments,
   }))
 }
 
-function buildSubsteps(row: JiraIntake, stages: AgentStage[]): AgentSubstep[] {
+function buildSubsteps(row: JiraIntake, stages: AgentStageWithOwners[]): AgentSubstep[] {
   const id = row.key.toLowerCase()
   return CATALOG.flatMap((stage, index) =>
     stage.substeps.map((name, position) => ({
@@ -100,26 +146,52 @@ function buildSubsteps(row: JiraIntake, stages: AgentStage[]): AgentSubstep[] {
   )
 }
 
-export const demoAgents: AgentWithStages[] = JIRA_INTAKE.map((row) => {
+export const demoAgents: AgentWithStages[] = JIRA_INTAKE.map((row, index) => {
   const created = daysAgo(row.created)
+  const assignedTo = ownerName(row.assignee)
   return {
     id: row.key.toLowerCase(),
     title: row.title,
     requester_name: requesterName(row.assignee),
     requester_department: row.department,
     description: agentDescription(row),
+    source_url: `https://digitalrealty-cdo.atlassian.net/browse/${row.key}`,
+    public_token: (index + 1).toString(16).padStart(32, '0'),
     priority: 'medium' as AgentPriority,
     current_stage_id: 'stage-1',
     target_go_live: null,
-    assigned_to: ownerName(row.assignee),
+    assigned_to: assignedTo,
     status: 'pending_approval',
     copilot_studio_url: null,
+    savings_amount: null,
+    savings_cadence: 'yearly',
     created_at: stamp(-created),
     updated_at: stamp(-created),
     agent_stages: buildStages(row),
+    agent_owners: ownerAssignments(assignedTo),
   }
 })
 
+const DEMO_SAVINGS: Array<{
+  index: number
+  amount: number
+  cadence: 'monthly' | 'yearly'
+  live: boolean
+}> = [
+  { index: 0, amount: 18000, cadence: 'yearly', live: true },
+  { index: 1, amount: 2500, cadence: 'monthly', live: true },
+  { index: 2, amount: 8000, cadence: 'yearly', live: false },
+]
+for (const row of DEMO_SAVINGS) {
+  const agent = demoAgents[row.index]
+  if (!agent) continue
+  agent.savings_amount = row.amount
+  agent.savings_cadence = row.cadence
+  if (row.live) {
+    agent.current_stage_id = 'stage-5'
+    agent.status = 'active'
+  }
+}
 if (demoAgents[0]) {
   demoAgents[0].copilot_studio_url =
     'https://copilotstudio.microsoft.com/environments/example/bots/legal-intake'

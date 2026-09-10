@@ -1,6 +1,7 @@
 # Copilot Studio Agent Tracker
 
-Shared status dashboard for Copilot Studio agent requests. Anyone with the link can view and update requests, stages, comments, and settings. There is no login.
+Shared status dashboard for Copilot Studio agent requests. Digital Realty employees sign in
+with a magic link to view requests. Administrators can also update tracker data and settings.
 
 ## Stack
 
@@ -9,7 +10,7 @@ Vite, React, TypeScript, Tailwind CSS, and Supabase (Postgres, RLS, Realtime). T
 ## 1. Create the Supabase project
 
 1. Create a project in the [Supabase dashboard](https://supabase.com/dashboard).
-2. Apply migrations from `supabase/migrations` with the CLI (`supabase link` then `supabase db push`) or paste them in order into the SQL editor. Later files add a **Pending approval** status, load the current PCT AI Request backlog (40 rows), and open writes to the public `anon` key. The backlog seed is idempotent.
+2. Apply migrations from `supabase/migrations` with the CLI (`supabase link` then `supabase db push`) or paste them in order into the SQL editor. Later files add a **Pending approval** status, load the current PCT AI Request backlog (40 rows), and restore authenticated role-based access. The backlog seed is idempotent.
 
 ## 2. Run the app
 
@@ -18,6 +19,9 @@ cp .env.example .env
 ```
 
 Fill in `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` from **Project Settings → API**.
+
+In Supabase **Authentication → URL Configuration**, set the production site URL and add local
+and preview URLs that may receive magic-link redirects. Email authentication must be enabled.
 
 ```bash
 npm install
@@ -58,9 +62,12 @@ as `dark:` variants rather than media queries.
 
 ## Access model
 
-Row Level Security is the gate. `anon` and `authenticated` can `SELECT`, `INSERT`, `UPDATE`, and `DELETE` tracker tables, and can call `create_agent`. Anyone who has the published URL and anon key can change data. Treat the site as an internal shared board, not a public internet app.
+Row Level Security is the gate. Anonymous and non-Digital Realty users cannot read tracker data.
+Authenticated `@digitalrealty.com` users have read-only access. A user can write only when their
+email is in `public.admins`; current admins manage that allowlist from Settings.
 
-The unused `admins` table remains in the schema from earlier versions but is not used by the UI.
+The initial administrators are Lauren Lawhon, Nabih Sabeh, and Mark Seay. Do not put passwords or
+tokens in the table; access is matched to the email claim in the authenticated Supabase session.
 
 ## Regenerating types
 

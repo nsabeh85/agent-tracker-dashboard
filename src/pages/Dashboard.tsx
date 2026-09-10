@@ -1,9 +1,16 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { SavingsBreakdown } from '../components/SavingsBreakdown'
 import { SummaryStrip } from '../components/SummaryStrip'
 import { ProgressBar } from '../components/ProgressBar'
 import { ScheduleMarker } from '../components/ScheduleMarker'
 import { useAgents, useCatalog, useRealtimeTick } from '../hooks/useTracker'
+import {
+  compareAgents,
+  matchesDashboardMetric,
+  type DashboardMetric,
+  type DashboardSort,
+} from '../lib/dashboard'
 import {
   dueLabel,
   formatDate,
@@ -14,26 +21,16 @@ import {
   statusLabel,
 } from '../lib/schedule'
 import { copilotStudioLabel } from '../lib/copilotStudioLink'
+import { savingsLabel } from '../lib/savings'
 import type { AgentPriority, AgentWithStages, Stage } from '../types/database'
 
-type SortKey = 'target' | 'priority' | 'updated'
 type StatusFilter = 'all' | 'pending_approval' | 'active'
-
-const PRIORITY_RANK: Record<AgentPriority, number> = { high: 0, medium: 1, low: 2 }
 
 const PRIORITY_STYLE: Record<AgentPriority, string> = {
   high: 'bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-500/15 dark:text-rose-300 dark:ring-rose-500/30',
   medium:
     'bg-brand-50 text-brand-700 ring-brand-200 dark:bg-brand-500/15 dark:text-brand-300 dark:ring-brand-500/30',
   low: 'bg-ink-100 text-ink-600 ring-ink-200 dark:bg-ink-800 dark:text-ink-300 dark:ring-ink-700',
-}
-
-function compareAgents(a: AgentWithStages, b: AgentWithStages, sort: SortKey): number {
-  if (sort === 'priority') return PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority]
-  if (sort === 'updated') return b.updated_at.localeCompare(a.updated_at)
-  const aDate = a.target_go_live ?? '9999-12-31'
-  const bDate = b.target_go_live ?? '9999-12-31'
-  return aDate.localeCompare(bDate)
 }
 
 function Select({
@@ -65,39 +62,54 @@ function Select({
 
 export function DashboardPage() {
   const tick = useRealtimeTick()
-  const { stages } = useCatalog(tick)
+  const { stages, owners: ownerCatalog, departments: departmentCatalog } = useCatalog(tick)
+  const owners = ownerCatalog.filter((owner) => owner.active)
   const { agents, loading, error } = useAgents(tick)
 
   const [stageId, setStageId] = useState('')
   const [owner, setOwner] = useState('')
   const [department, setDepartment] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
-  const [sort, setSort] = useState<SortKey>('target')
+  const [summaryMetric, setSummaryMetric] = useState<DashboardMetric | null>(null)
+  const [sort, setSort] = useState<DashboardSort>('priority')
 
-  const owners = useMemo(
-    () => [...new Set(agents.map((a) => a.assigned_to))].sort(),
-    [agents],
-  )
-  const departments = useMemo(
-    () => [...new Set(agents.map((a) => a.requester_department))].sort(),
-    [agents],
-  )
+  const departments = departmentCatalog.filter((department) => department.active)
 
   const visible = useMemo(() => {
     return agents
       .filter((agent) => {
+        if (summaryMetric && !matchesDashboardMetric(agent, stages, summaryMetric)) return false
         if (statusFilter !== 'all' && agent.status !== statusFilter) return false
         if (stageId && agent.current_stage_id !== stageId) return false
-        if (owner && agent.assigned_to !== owner) return false
+        if (
+          owner &&
+          !agent.agent_owners.some((assignment) => assignment.owner.full_name === owner) &&
+          !(agent.agent_owners.length === 0 && agent.assigned_to === owner)
+        ) {
+          return false
+        }
         if (department && agent.requester_department !== department) return false
         return true
       })
       .sort((a, b) => compareAgents(a, b, sort))
-  }, [agents, department, owner, sort, stageId, statusFilter])
+  }, [agents, department, owner, sort, stageId, stages, statusFilter, summaryMetric])
+
+  function selectSummaryMetric(metric: DashboardMetric | null) {
+    setSummaryMetric(metric)
+    setStageId('')
+    setOwner('')
+    setDepartment('')
+    setStatusFilter('all')
+  }
 
   return (
     <div className="space-y-6">
-      <SummaryStrip agents={agents} stages={stages} />
+      <SummaryStrip
+        agents={agents}
+        stages={stages}
+        activeMetric={summaryMetric}
+        onMetricChange={selectSummaryMetric}
+      />
 
       <div className="border-ink-200/70 dark:border-ink-800 dark:bg-ink-900/50 grid grid-cols-2 gap-3 rounded-2xl border bg-white/70 p-3 backdrop-blur-sm sm:grid-cols-3 md:flex md:flex-wrap md:items-end md:p-4">
         <Select label="Stage" value={stageId} onChange={setStageId}>
@@ -110,30 +122,37 @@ export function DashboardPage() {
         </Select>
         <Select label="Owner" value={owner} onChange={setOwner}>
           <option value="">All owners</option>
-          {owners.map((name) => (
-            <option key={name} value={name}>
-              {name}
+          {owners.map((owner) => (
+            <option key={owner.id} value={owner.full_name}>
+              {owner.full_name}
             </option>
           ))}
         </Select>
         <Select label="Department" value={department} onChange={setDepartment}>
           <option value="">All departments</option>
-          {departments.map((name) => (
-            <option key={name} value={name}>
-              {name}
+          {departments.map((department) => (
+            <option key={department.id} value={department.name}>
+              {department.name}
             </option>
           ))}
         </Select>
         <Select
           label="Status"
           value={statusFilter}
-          onChange={(value) => setStatusFilter(value as StatusFilter)}
+          onChange={(value) => {
+            setStatusFilter(value as StatusFilter)
+            setSummaryMetric(null)
+          }}
         >
           <option value="all">All statuses</option>
           <option value="pending_approval">Pending approval</option>
           <option value="active">Active only</option>
         </Select>
-        <Select label="Sort" value={sort} onChange={(value) => setSort(value as SortKey)}>
+        <Select
+          label="Sort"
+          value={sort}
+          onChange={(value) => setSort(value as DashboardSort)}
+        >
           <option value="target">Target date</option>
           <option value="priority">Priority</option>
           <option value="updated">Last updated</option>
@@ -142,6 +161,8 @@ export function DashboardPage() {
           {visible.length} of {agents.length} shown
         </p>
       </div>
+
+      <SavingsBreakdown agents={agents} stages={stages} />
 
       {error ? (
         <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
@@ -187,6 +208,10 @@ function AgentListItem({
   const overdue = isPastTargetGoLive(agent, stages)
   const behind = isAgentBehind(agent, agent.agent_stages, stages)
   const live = isLiveAgent(agent, stages)
+  const savings = live ? savingsLabel(agent.savings_amount, agent.savings_cadence) : null
+  const ownerSummary =
+    agent.agent_owners.map((assignment) => assignment.owner.full_name).join(', ') ||
+    agent.assigned_to
   const accent = overdue
     ? 'bg-red-500'
     : behind
@@ -249,9 +274,9 @@ function AgentListItem({
               ) : null}
               <span className="text-ink-500 dark:text-ink-400 inline-flex items-center gap-1.5 font-medium">
                 <span className="bg-brand-100 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300 inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold">
-                  {initials(agent.assigned_to)}
+                  {initials(ownerSummary)}
                 </span>
-                {agent.assigned_to}
+                {ownerSummary}
               </span>
             </div>
           </div>
@@ -284,6 +309,11 @@ function AgentListItem({
             >
               {live ? 'Live now' : dueLabel(agent.target_go_live)}
             </p>
+            {savings ? (
+              <p className="text-emerald-700 dark:text-emerald-400 mt-1 text-xs font-semibold">
+                Saves {savings}
+              </p>
+            ) : null}
           </div>
         </div>
       </Link>

@@ -4,9 +4,12 @@ import {
   demoAgentSubsteps,
   demoAgents,
   demoComments,
+  demoDepartments,
+  demoOwners,
   demoStages,
   demoSubsteps,
 } from '../lib/demoData'
+import { parsePublicAgent, type PublicAgent } from '../lib/tracking'
 import type {
   AgentStage,
   AgentSubstep,
@@ -16,7 +19,16 @@ import type {
   Substep,
 } from '../types/database'
 
-const TRACKER_TABLES = ['agents', 'agent_stages', 'agent_substeps', 'comments'] as const
+const TRACKER_TABLES = [
+  'agents',
+  'agent_owners',
+  'agent_stages',
+  'agent_stage_owners',
+  'agent_substeps',
+  'comments',
+  'departments',
+  'owners',
+] as const
 
 export function useRealtimeTick(): number {
   const [tick, setTick] = useState(0)
@@ -43,25 +55,33 @@ export function useRealtimeTick(): number {
 export function useCatalog(tick: number) {
   const [stages, setStages] = useState<Stage[]>(isDemoMode ? demoStages : [])
   const [substeps, setSubsteps] = useState<Substep[]>(isDemoMode ? demoSubsteps : [])
+  const [owners, setOwners] = useState(isDemoMode ? demoOwners : [])
+  const [departments, setDepartments] = useState(isDemoMode ? demoDepartments : [])
   const [error, setError] = useState<string | null>(null)
 
   const reload = useCallback(async () => {
     if (isDemoMode) return
-    const [stageRes, substepRes] = await Promise.all([
+    const [stageRes, substepRes, ownerRes, departmentRes] = await Promise.all([
       supabase.from('stages').select('*').order('sort_order'),
       supabase.from('substeps').select('*').order('sort_order'),
+      supabase.from('owners').select('*').order('sort_order').order('full_name'),
+      supabase.from('departments').select('*').order('sort_order').order('name'),
     ])
     if (stageRes.error) setError(stageRes.error.message)
     else setStages(stageRes.data)
     if (substepRes.error) setError(substepRes.error.message)
     else setSubsteps(substepRes.data)
+    if (ownerRes.error) setError(ownerRes.error.message)
+    else setOwners(ownerRes.data)
+    if (departmentRes.error) setError(departmentRes.error.message)
+    else setDepartments(departmentRes.data)
   }, [])
 
   useEffect(() => {
     void reload()
   }, [reload, tick])
 
-  return { stages, substeps, error, reload }
+  return { stages, substeps, owners, departments, error, reload }
 }
 
 export function useAgents(tick: number) {
@@ -73,7 +93,9 @@ export function useAgents(tick: number) {
     if (isDemoMode) return
     const { data, error: queryError } = await supabase
       .from('agents')
-      .select('*, agent_stages(*)')
+      .select(
+        '*, agent_owners(owner_id, owner:owners(*)), agent_stages(*, agent_stage_owners(owner_id, owner:owners(*)))',
+      )
       .order('updated_at', { ascending: false })
     if (queryError) {
       setError(queryError.message)
@@ -114,7 +136,13 @@ export function useAgentDetail(agentId: string | undefined, tick: number) {
     }
 
     const [agentRes, subRes, commentRes] = await Promise.all([
-      supabase.from('agents').select('*, agent_stages(*)').eq('id', agentId).maybeSingle(),
+      supabase
+        .from('agents')
+        .select(
+          '*, agent_owners(owner_id, owner:owners(*)), agent_stages(*, agent_stage_owners(owner_id, owner:owners(*)))',
+        )
+        .eq('id', agentId)
+        .maybeSingle(),
       supabase.from('agent_substeps').select('*').eq('agent_id', agentId).order('sort_order'),
       supabase
         .from('comments')
@@ -138,16 +166,100 @@ export function useAgentDetail(agentId: string | undefined, tick: number) {
   return { agent, substeps, comments, loading, error, reload }
 }
 
-export function orderedAgentStages(
-  agentStages: AgentStage[],
+function toPublicAgent(agent: AgentWithStages, substeps: AgentSubstep[]): PublicAgent {
+  return {
+    title: agent.title,
+    description: agent.description,
+    source_url: agent.source_url,
+    requester_name: agent.requester_name,
+    requester_department: agent.requester_department,
+    priority: agent.priority,
+    status: agent.status,
+    owners: agent.assigned_to,
+    current_stage_id: agent.current_stage_id,
+    target_go_live: agent.target_go_live,
+    created_at: agent.created_at,
+    stages: agent.agent_stages.map((row) => {
+      const catalog = demoStages.find((stage) => stage.id === row.stage_id)
+      return {
+        id: row.id,
+        stage_id: row.stage_id,
+        name: catalog?.name ?? row.stage_id,
+        sort_order: catalog?.sort_order ?? 0,
+        status: row.status,
+        expected_duration_days: row.expected_duration_days,
+        actual_start: row.actual_start,
+        actual_end: row.actual_end,
+      }
+    }),
+    substeps: substeps.map((step) => ({
+      id: step.id,
+      agent_stage_id: step.agent_stage_id,
+      name: step.name,
+      sort_order: step.sort_order,
+      status: step.status,
+    })),
+  }
+}
+
+export function usePublicAgent(token: string | undefined) {
+  const [agent, setAgent] = useState<PublicAgent | null>(null)
+  const [loading, setLoading] = useState(Boolean(token))
+  const [error, setError] = useState<string | null>(null)
+
+  const reload = useCallback(async () => {
+    if (!token) {
+      setAgent(null)
+      setLoading(false)
+      return
+    }
+
+    if (isDemoMode) {
+      const match = demoAgents.find((row) => row.public_token === token) ?? null
+      setAgent(
+        match
+          ? toPublicAgent(
+              match,
+              demoAgentSubsteps.filter((row) => row.agent_id === match.id),
+            )
+          : null,
+      )
+      setError(null)
+      setLoading(false)
+      return
+    }
+
+    const { data, error: rpcError } = await supabase.rpc('get_public_agent', {
+      p_token: token,
+    })
+    if (rpcError) {
+      setError(rpcError.message)
+      setAgent(null)
+      setLoading(false)
+      return
+    }
+    setError(null)
+    setAgent(parsePublicAgent(data))
+    setLoading(false)
+  }, [token])
+
+  useEffect(() => {
+    void reload()
+  }, [reload])
+
+  return { agent, loading, error, reload }
+}
+
+export function orderedAgentStages<T extends AgentStage>(
+  agentStages: T[],
   stages: Stage[],
-): Array<AgentStage & { stage: Stage }> {
+): Array<T & { stage: Stage }> {
   const byId = new Map(stages.map((s) => [s.id, s]))
   return [...agentStages]
     .map((row) => {
       const stage = byId.get(row.stage_id)
       return stage ? { ...row, stage } : null
     })
-    .filter((row): row is AgentStage & { stage: Stage } => row !== null)
+    .filter((row): row is T & { stage: Stage } => row !== null)
     .sort((a, b) => a.stage.sort_order - b.stage.sort_order)
 }
