@@ -4,6 +4,7 @@ import {
   savingsByDepartment,
   savingsLabel,
   totalLiveAnnualSavings,
+  totalLiveRealizedSavings,
 } from '../lib/savings'
 import type { AgentWithStages, Stage } from '../types/database'
 
@@ -15,6 +16,7 @@ export function SavingsBreakdown({
   stages: Stage[]
 }) {
   const overall = totalLiveAnnualSavings(agents, stages)
+  const realized = totalLiveRealizedSavings(agents, stages)
   const departments = savingsByDepartment(agents, stages)
   const rows = liveAgentsWithSavings(agents, stages)
 
@@ -25,16 +27,25 @@ export function SavingsBreakdown({
           Estimated savings
         </h3>
         <p className="text-ink-500 dark:text-ink-400 mt-1 text-sm">
-          Annualized from live agents only. Monthly estimates are multiplied by 12.
+          Annual figures are a full-year projection (monthly × 12). Saved so far adds one month of
+          value for each month a live agent has been in service.
         </p>
       </div>
 
-      <p className="text-ink-900 dark:text-ink-50 text-3xl font-bold tracking-tight">
-        {formatUsd(overall)}
-        <span className="text-ink-400 ml-2 text-sm font-semibold tracking-wide uppercase">
-          / yr overall
-        </span>
-      </p>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <p className="text-ink-900 dark:text-ink-50 text-3xl font-bold tracking-tight">
+          {formatUsd(overall)}
+          <span className="text-ink-400 ml-2 text-sm font-semibold tracking-wide uppercase">
+            / yr projected
+          </span>
+        </p>
+        <p className="text-ink-900 dark:text-ink-50 text-3xl font-bold tracking-tight">
+          {formatUsd(realized)}
+          <span className="text-ink-400 ml-2 text-sm font-semibold tracking-wide uppercase">
+            saved so far
+          </span>
+        </p>
+      </div>
 
       <div className="grid gap-6 md:grid-cols-2">
         <div>
@@ -51,6 +62,9 @@ export function SavingsBreakdown({
                   <span className="text-ink-900 dark:text-ink-50 font-semibold">
                     {formatUsd(row.annual)}
                     <span className="text-ink-400 ml-1 text-xs font-medium">/ yr</span>
+                    <span className="text-ink-400 ml-2 text-xs font-medium">
+                      {formatUsd(row.realized)} so far
+                    </span>
                   </span>
                 </li>
               ))}
@@ -65,7 +79,7 @@ export function SavingsBreakdown({
             <p className="text-ink-400 text-sm">No live agent has a savings estimate.</p>
           ) : (
             <ul className="space-y-2">
-              {rows.map(({ agent, annual }) => (
+              {rows.map(({ agent, annual, realized: agentRealized }) => (
                 <li key={agent.id} className="flex items-baseline justify-between gap-3 text-sm">
                   <span className="text-ink-800 dark:text-ink-100 min-w-0 truncate font-medium">
                     {agent.title}
@@ -73,7 +87,7 @@ export function SavingsBreakdown({
                   <span className="text-ink-900 dark:text-ink-50 shrink-0 font-semibold">
                     {savingsLabel(agent.savings_amount, agent.savings_cadence)}
                     <span className="text-ink-400 ml-1 text-xs font-medium">
-                      ({formatUsd(annual)} / yr)
+                      ({formatUsd(annual)} / yr · {formatUsd(agentRealized)} so far)
                     </span>
                   </span>
                 </li>
