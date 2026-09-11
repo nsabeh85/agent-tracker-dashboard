@@ -19,6 +19,8 @@ import {
   formatDateTime,
   GO_LIVE_BEFORE_TESTING,
   GO_LIVE_REQUIRED,
+  STAGES_COMPLETE_BEFORE_LIVE,
+  hasIncompleteItemsBeforeLive,
   initials,
   isFilledDate,
   isLiveAgent,
@@ -27,6 +29,7 @@ import {
   stageStatusFromItems,
   statusLabel,
   todayISO,
+  wouldEnterOrFinishLive,
 } from '../lib/schedule'
 import { copilotStudioLabel } from '../lib/copilotStudioLink'
 import { descriptionWithoutSource, isHttpsUrl, sourceLabel } from '../lib/sourceLink'
@@ -190,6 +193,7 @@ export function AgentDetailPage() {
           <AgentActions
             agent={agent}
             rows={rows}
+            substeps={substeps}
             owners={owners}
             departments={departments}
             onSaved={reload}
@@ -213,7 +217,6 @@ export function AgentDetailPage() {
             position={index + 1}
             canEdit={Boolean(admin)}
             owners={owners}
-            agentId={agent.id}
             currentStageId={agent.current_stage_id}
             stageRows={rows}
             substeps={substeps.filter((s) => s.agent_stage_id === row.id)}
@@ -256,7 +259,6 @@ function StageCard({
   position,
   canEdit,
   owners,
-  agentId,
   currentStageId,
   stageRows,
   substeps,
@@ -268,7 +270,6 @@ function StageCard({
   position: number
   canEdit: boolean
   owners: Owner[]
-  agentId: string
   currentStageId: string
   stageRows: Array<AgentStage & { stage: Stage }>
   substeps: AgentSubstep[]
@@ -283,9 +284,6 @@ function StageCard({
   const isComplete = displayedStatus === 'complete'
   const isCurrent = row.stage_id === currentStageId
   const currentRow = stageRows.find((stage) => stage.stage_id === currentStageId)
-  const isEarlier = Boolean(
-    currentRow && row.stage.sort_order < currentRow.stage.sort_order,
-  )
   const isLater = Boolean(
     currentRow && row.stage.sort_order > currentRow.stage.sort_order,
   )
@@ -305,35 +303,10 @@ function StageCard({
     else await onSaved()
   }
 
-  async function reopenStage() {
-    if (
-      !window.confirm(
-        `Reopen ${row.stage.name}? This resets this stage and every later stage.`,
-      )
-    ) {
-      return
-    }
-    const { error } = await supabase.rpc('reopen_agent_stage', {
-      p_agent_id: agentId,
-      p_agent_stage_id: row.id,
-    })
-    if (error) window.alert(error.message)
-    else await onSaved()
-  }
-
   async function toggleSubstep(step: AgentSubstep) {
     const next: ProgressStatus = step.status === 'complete' ? 'not_started' : 'complete'
     if (isLater) {
       window.alert('Finish the current stage before changing a later stage.')
-      return
-    }
-    if (
-      next === 'not_started' &&
-      isEarlier &&
-      !window.confirm(
-        `Reopen ${row.stage.name}? This resets progress in every later stage.`,
-      )
-    ) {
       return
     }
     const { error } = await supabase.rpc('set_agent_substep_status', {
@@ -413,20 +386,6 @@ function StageCard({
 
       {open ? (
         <div className="border-ink-100 dark:border-ink-800 space-y-5 border-t px-4 py-4 md:px-5">
-          {canEdit && isEarlier ? (
-            <div className="border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10 flex flex-wrap items-center justify-between gap-3 rounded-xl border px-3 py-2.5">
-              <p className="text-amber-800 dark:text-amber-200 text-xs">
-                Reopen this stage before changing earlier unfinished work.
-              </p>
-              <button
-                type="button"
-                onClick={() => void reopenStage()}
-                className="rounded-full bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white"
-              >
-                Reopen from here
-              </button>
-            </div>
-          ) : null}
           <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-5">
             <Field label="Expected days">
               <input
@@ -578,12 +537,14 @@ function FieldGroup({ label, children }: { label: string; children: ReactNode })
 function AgentActions({
   agent,
   rows,
+  substeps,
   owners,
   departments,
   onSaved,
 }: {
   agent: AgentWithStages
   rows: Array<AgentStageWithOwners & { stage: Stage }>
+  substeps: AgentSubstep[]
   owners: Owner[]
   departments: Department[]
   onSaved: () => Promise<void>
@@ -620,6 +581,13 @@ function AgentActions({
     const next = rows[index + 1]
     if (needsGoLiveDate(next?.stage.name, agent.target_go_live)) {
       window.alert(GO_LIVE_BEFORE_TESTING)
+      return
+    }
+    if (
+      wouldEnterOrFinishLive(current.stage.name, next?.stage.name) &&
+      hasIncompleteItemsBeforeLive(rows, substeps)
+    ) {
+      window.alert(STAGES_COMPLETE_BEFORE_LIVE)
       return
     }
     const confirmed = window.confirm(
