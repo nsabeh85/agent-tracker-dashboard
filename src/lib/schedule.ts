@@ -140,10 +140,16 @@ export function nextStageAfter<T extends { stage: Stage }>(rows: T[], row: T): T
   return ordered[index + 1] ?? null
 }
 
+export const GO_LIVE_REQUIRED = 'Select a target go-live date.'
+
 export const GO_LIVE_BEFORE_TESTING =
   'Set a target go-live date before a request can enter Testing.'
 
-/** The only extra required field: a go-live date before Testing. */
+export function isFilledDate(value: string | null | undefined): boolean {
+  return Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value.trim()))
+}
+
+/** Blocks moving into Testing when go-live was never set. */
 export function needsGoLiveDate(
   nextStageName: string | undefined,
   targetGoLive: string | null | undefined,

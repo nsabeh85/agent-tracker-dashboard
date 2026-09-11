@@ -424,6 +424,13 @@ export type Database = {
         }
         Returns: string
       }
+      advance_agent_stage: {
+        Args: {
+          p_agent_id: string
+          p_agent_stage_id: string
+        }
+        Returns: string
+      }
       create_agent_with_owners: {
         Args: {
           p_description: string

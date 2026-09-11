@@ -5,6 +5,7 @@ import { ScheduleMarker } from '../components/ScheduleMarker'
 import { CheckIcon } from '../components/StageIcon'
 import { OwnerMultiSelect } from '../components/OwnerMultiSelect'
 import { CopyTrackingLink } from '../components/CopyTrackingLink'
+import { DateInput } from '../components/DateInput'
 import {
   orderedAgentStages,
   useAgentDetail,
@@ -16,9 +17,13 @@ import {
   dueLabel,
   formatDate,
   formatDateTime,
+  GO_LIVE_BEFORE_TESTING,
+  GO_LIVE_REQUIRED,
   initials,
+  isFilledDate,
   isLiveAgent,
   isStageBehind,
+  needsGoLiveDate,
   stageStatusFromItems,
   statusLabel,
   todayISO,
@@ -609,6 +614,28 @@ function AgentActions({
     else await onSaved()
   }
 
+  async function advanceStage() {
+    const current = rows[index]
+    if (!current) return
+    const next = rows[index + 1]
+    if (needsGoLiveDate(next?.stage.name, agent.target_go_live)) {
+      window.alert(GO_LIVE_BEFORE_TESTING)
+      return
+    }
+    const confirmed = window.confirm(
+      next
+        ? `Advance ${current.stage.name} now? Remaining items in this stage will be marked complete, then the tracker moves to ${next.stage.name}.`
+        : `Advance ${current.stage.name} now? Remaining items will be marked complete and this agent will be Complete.`,
+    )
+    if (!confirmed) return
+    const { error } = await supabase.rpc('advance_agent_stage', {
+      p_agent_id: agent.id,
+      p_agent_stage_id: current.id,
+    })
+    if (error) window.alert(error.message)
+    else await onSaved()
+  }
+
   async function setStatus(status: AgentStatus) {
     if (agent.status === 'complete' && status !== 'complete') {
       window.alert('Reopen a completed item before changing this agent from Complete.')
@@ -643,7 +670,11 @@ function AgentActions({
       return
     }
     const form = new FormData(event.currentTarget)
-    const goLive = String(form.get('target_go_live') ?? '')
+    const goLive = String(form.get('target_go_live') ?? '').trim()
+    if (!isFilledDate(goLive)) {
+      window.alert(GO_LIVE_REQUIRED)
+      return
+    }
     const sourceUrl = String(form.get('source_url') ?? '').trim()
     if (!isHttpsUrl(sourceUrl)) {
       window.alert('Source request must be a valid HTTPS URL.')
@@ -669,7 +700,7 @@ function AgentActions({
         description: String(form.get('description') ?? '').trim(),
         priority: String(form.get('priority') ?? 'medium') as AgentPriority,
         source_url: sourceUrl || null,
-        target_go_live: goLive || null,
+        target_go_live: goLive,
         copilot_studio_url: studioUrl || null,
         savings_amount: savings,
         savings_cadence: String(form.get('savings_cadence') ?? 'yearly') === 'monthly' ? 'monthly' : 'yearly',
@@ -718,6 +749,14 @@ function AgentActions({
           onClick={() => void reopenPreviousStage()}
         >
           Roll back
+        </button>
+        <button
+          type="button"
+          className="bg-brand-600 shadow-brand-600/25 hover:bg-brand-700 rounded-full px-3.5 py-1.5 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-0.5 disabled:opacity-40 disabled:hover:translate-y-0"
+          disabled={busy || index < 0}
+          onClick={() => void advanceStage()}
+        >
+          Advance stage
         </button>
         <button
           type="button"
@@ -807,9 +846,9 @@ function AgentActions({
             </select>
           </Field>
           <Field label="Target go live">
-            <input
-              type="date"
+            <DateInput
               name="target_go_live"
+              required
               defaultValue={agent.target_go_live ?? ''}
               className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
             />

@@ -11,6 +11,7 @@ import {
   isAgentBehind,
   isInFlight,
   isPastTargetGoLive,
+  isFilledDate,
   isStageBehind,
   needsGoLiveDate,
   nextStageAfter,
@@ -200,6 +201,13 @@ describe('stage auto-advance', () => {
     expect(needsGoLiveDate('Testing', '2026-10-01')).toBe(false)
     expect(needsGoLiveDate('Building', null)).toBe(false)
     expect(needsGoLiveDate('Live', null)).toBe(false)
+  })
+
+  it('treats only an explicit yyyy-mm-dd value as a chosen date', () => {
+    expect(isFilledDate('')).toBe(false)
+    expect(isFilledDate('  ')).toBe(false)
+    expect(isFilledDate(null)).toBe(false)
+    expect(isFilledDate('2026-09-11')).toBe(true)
   })
 
   it('does not auto-advance while any item is still open', () => {
