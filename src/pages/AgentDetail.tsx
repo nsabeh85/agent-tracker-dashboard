@@ -16,9 +16,11 @@ import {
   dueLabel,
   formatDate,
   formatDateTime,
+  GO_LIVE_BEFORE_TESTING,
   initials,
   isLiveAgent,
   isStageBehind,
+  needsGoLiveDate,
   stageStatusFromItems,
   statusLabel,
   todayISO,
@@ -609,6 +611,28 @@ function AgentActions({
     else await onSaved()
   }
 
+  async function advanceStage() {
+    const current = rows[index]
+    if (!current) return
+    const next = rows[index + 1]
+    if (needsGoLiveDate(next?.stage.name, agent.target_go_live)) {
+      window.alert(GO_LIVE_BEFORE_TESTING)
+      return
+    }
+    const confirmed = window.confirm(
+      next
+        ? `Advance ${current.stage.name} now? Remaining items in this stage will be marked complete, then the tracker moves to ${next.stage.name}.`
+        : `Advance ${current.stage.name} now? Remaining items will be marked complete and this agent will be Complete.`,
+    )
+    if (!confirmed) return
+    const { error } = await supabase.rpc('advance_agent_stage', {
+      p_agent_id: agent.id,
+      p_agent_stage_id: current.id,
+    })
+    if (error) window.alert(error.message)
+    else await onSaved()
+  }
+
   async function setStatus(status: AgentStatus) {
     if (agent.status === 'complete' && status !== 'complete') {
       window.alert('Reopen a completed item before changing this agent from Complete.')
@@ -718,6 +742,14 @@ function AgentActions({
           onClick={() => void reopenPreviousStage()}
         >
           Roll back
+        </button>
+        <button
+          type="button"
+          className="bg-brand-600 shadow-brand-600/25 hover:bg-brand-700 rounded-full px-3.5 py-1.5 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-0.5 disabled:opacity-40 disabled:hover:translate-y-0"
+          disabled={busy || index < 0}
+          onClick={() => void advanceStage()}
+        >
+          Advance stage
         </button>
         <button
           type="button"
