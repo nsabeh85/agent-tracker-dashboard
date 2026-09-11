@@ -13,23 +13,19 @@ import {
 } from '../hooks/useTracker'
 import { useAuth } from '../lib/auth'
 import {
-  allSubstepsComplete,
-  canAutoAdvance,
-  nextStageAfter,
-  needsGoLiveDate,
-  GO_LIVE_BEFORE_TESTING,
   dueLabel,
   formatDate,
   formatDateTime,
   initials,
   isLiveAgent,
   isStageBehind,
+  stageStatusFromItems,
   statusLabel,
   todayISO,
 } from '../lib/schedule'
 import { copilotStudioLabel } from '../lib/copilotStudioLink'
 import { descriptionWithoutSource, isHttpsUrl, sourceLabel } from '../lib/sourceLink'
-import { isMissingFunctionError, supabase } from '../lib/supabase'
+import { supabase } from '../lib/supabase'
 import { parseSavingsAmount, savingsLabel } from '../lib/savings'
 import type {
   Admin,
@@ -214,7 +210,6 @@ export function AgentDetailPage() {
             owners={owners}
             agentId={agent.id}
             currentStageId={agent.current_stage_id}
-            targetGoLive={agent.target_go_live}
             stageRows={rows}
             substeps={substeps.filter((s) => s.agent_stage_id === row.id)}
             open={openStageId === row.id}
@@ -258,7 +253,6 @@ function StageCard({
   owners,
   agentId,
   currentStageId,
-  targetGoLive,
   stageRows,
   substeps,
   open,
@@ -271,7 +265,6 @@ function StageCard({
   owners: Owner[]
   agentId: string
   currentStageId: string
-  targetGoLive: string | null
   stageRows: Array<AgentStage & { stage: Stage }>
   substeps: AgentSubstep[]
   open: boolean
@@ -280,8 +273,17 @@ function StageCard({
 }) {
   const behind = isStageBehind(row)
   const done = substeps.filter((s) => s.status === 'complete').length
-  const isComplete = row.status === 'complete'
-  const isCurrent = row.status === 'in_progress'
+  const itemStatus = stageStatusFromItems(substeps)
+  const displayedStatus = row.status === 'blocked' ? 'blocked' : itemStatus
+  const isComplete = displayedStatus === 'complete'
+  const isCurrent = row.stage_id === currentStageId
+  const currentRow = stageRows.find((stage) => stage.stage_id === currentStageId)
+  const isEarlier = Boolean(
+    currentRow && row.stage.sort_order < currentRow.stage.sort_order,
+  )
+  const isLater = Boolean(
+    currentRow && row.stage.sort_order > currentRow.stage.sort_order,
+  )
 
   async function updateStage(patch: Partial<AgentStage>) {
     const { error } = await supabase.from('agent_stages').update(patch).eq('id', row.id)
@@ -298,81 +300,45 @@ function StageCard({
     else await onSaved()
   }
 
-  /** Completes this current stage and starts the next one, preferring the RPC. */
-  async function completeAndAdvance(itemStatuses = substeps) {
-    if (!canAutoAdvance(row, currentStageId, itemStatuses)) return
-    const next = nextStageAfter(stageRows, row)
-    if (needsGoLiveDate(next?.stage.name, targetGoLive)) {
-      window.alert(GO_LIVE_BEFORE_TESTING)
+  async function reopenStage() {
+    if (
+      !window.confirm(
+        `Reopen ${row.stage.name}? This resets this stage and every later stage.`,
+      )
+    ) {
       return
     }
-    const { error } = await supabase.rpc('complete_stage_and_advance', {
+    const { error } = await supabase.rpc('reopen_agent_stage', {
       p_agent_id: agentId,
       p_agent_stage_id: row.id,
     })
-    if (!error) {
-      await onSaved()
-      return
-    }
-    if (!isMissingFunctionError(error)) {
-      window.alert(error.message)
-      return
-    }
-
-    const { error: completeError } = await supabase
-      .from('agent_stages')
-      .update({ status: 'complete', actual_end: row.actual_end ?? todayISO() })
-      .eq('id', row.id)
-    if (completeError) {
-      window.alert(completeError.message)
-      return
-    }
-    if (next) {
-      const { error: nextError } = await supabase
-        .from('agent_stages')
-        .update({
-          status: 'in_progress',
-          actual_start: next.actual_start ?? todayISO(),
-        })
-        .eq('id', next.id)
-      if (nextError) {
-        window.alert(nextError.message)
-        return
-      }
-      const { error: agentError } = await supabase
-        .from('agents')
-        .update({ current_stage_id: next.stage_id })
-        .eq('id', agentId)
-      if (agentError) {
-        window.alert(agentError.message)
-        return
-      }
-    }
-    await onSaved()
+    if (error) window.alert(error.message)
+    else await onSaved()
   }
 
   async function toggleSubstep(step: AgentSubstep) {
     const next: ProgressStatus = step.status === 'complete' ? 'not_started' : 'complete'
-    const { error } = await supabase
-      .from('agent_substeps')
-      .update({
-        status: next,
-        actual_end: next === 'complete' ? todayISO() : null,
-        actual_start:
-          next === 'complete' && !step.actual_start ? todayISO() : step.actual_start,
-      })
-      .eq('id', step.id)
+    if (isLater) {
+      window.alert('Finish the current stage before changing a later stage.')
+      return
+    }
+    if (
+      next === 'not_started' &&
+      isEarlier &&
+      !window.confirm(
+        `Reopen ${row.stage.name}? This resets progress in every later stage.`,
+      )
+    ) {
+      return
+    }
+    const { error } = await supabase.rpc('set_agent_substep_status', {
+      p_agent_substep_id: step.id,
+      p_status: next,
+    })
     if (error) {
       window.alert(error.message)
       return
     }
-
-    const settled = substeps.map((s) => (s.id === step.id ? { ...s, status: next } : s))
-    if (next === 'complete' && row.status !== 'complete' && allSubstepsComplete(settled)) {
-      await completeAndAdvance(settled)
-      return
-    }
-
     await onSaved()
   }
 
@@ -419,9 +385,9 @@ function StageCard({
         </span>
 
         <span
-          className={`hidden rounded-full px-2.5 py-1 text-xs font-semibold ring-1 sm:inline-flex ${STATUS_PILL[row.status]}`}
+          className={`hidden rounded-full px-2.5 py-1 text-xs font-semibold ring-1 sm:inline-flex ${STATUS_PILL[displayedStatus]}`}
         >
-          {statusLabel(row.status)}
+          {statusLabel(displayedStatus)}
         </span>
 
         <svg
@@ -442,6 +408,20 @@ function StageCard({
 
       {open ? (
         <div className="border-ink-100 dark:border-ink-800 space-y-5 border-t px-4 py-4 md:px-5">
+          {canEdit && isEarlier ? (
+            <div className="border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10 flex flex-wrap items-center justify-between gap-3 rounded-xl border px-3 py-2.5">
+              <p className="text-amber-800 dark:text-amber-200 text-xs">
+                Reopen this stage before changing earlier unfinished work.
+              </p>
+              <button
+                type="button"
+                onClick={() => void reopenStage()}
+                className="rounded-full bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white"
+              >
+                Reopen from here
+              </button>
+            </div>
+          ) : null}
           <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-5">
             <Field label="Expected days">
               <input
@@ -482,35 +462,26 @@ function StageCard({
                 }}
               />
             </Field>
-            <Field label="Status">
-              <select
-                value={row.status}
-                disabled={!canEdit}
-                className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
-                onChange={(e) => {
-                  const status = e.target.value as ProgressStatus
-                  if (status !== 'complete') {
-                    void updateStage({ status })
-                    return
-                  }
-                  if (!allSubstepsComplete(substeps)) {
-                    window.alert(
-                      substeps.length === 0
-                        ? 'A stage with no items cannot auto-advance. Use Advance stage to move on.'
-                        : 'Mark every item in this stage complete before the tracker can move on.',
-                    )
-                    return
-                  }
-                  if (row.stage_id === currentStageId) void completeAndAdvance()
-                  else void updateStage({ status: 'complete', actual_end: row.actual_end ?? todayISO() })
-                }}
-              >
-                <option value="not_started">Not started</option>
-                <option value="in_progress">In progress</option>
-                <option value="complete">Complete</option>
-                <option value="blocked">Blocked</option>
-              </select>
-            </Field>
+            <FieldGroup label="Status (automatic)">
+              <span className="flex flex-wrap items-center gap-2">
+                <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${STATUS_PILL[displayedStatus]}`}>
+                  {statusLabel(displayedStatus)}
+                </span>
+                {canEdit && isCurrent && displayedStatus !== 'complete' ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void updateStage({
+                        status: displayedStatus === 'blocked' ? itemStatus : 'blocked',
+                      })
+                    }
+                    className="text-ink-500 dark:text-ink-400 text-xs font-medium"
+                  >
+                    {displayedStatus === 'blocked' ? 'Clear block' : 'Mark blocked'}
+                  </button>
+                ) : null}
+              </span>
+            </FieldGroup>
             <FieldGroup label="Stage owners">
               <OwnerMultiSelect
                 owners={owners}
@@ -537,12 +508,12 @@ function StageCard({
                 >
                   <button
                     type="button"
-                    disabled={!canEdit}
+                    disabled={!canEdit || isLater}
                     onClick={() => void toggleSubstep(step)}
                     aria-pressed={stepDone}
                     aria-label={`Mark ${step.name} ${stepDone ? 'not done' : 'done'}`}
                     className={[
-                      'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition',
+                      'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition disabled:cursor-not-allowed disabled:opacity-40',
                       stepDone
                         ? 'border-emerald-500 bg-emerald-500 text-white'
                         : 'border-ink-300 hover:border-brand-500 dark:border-ink-600 bg-white dark:bg-transparent',
@@ -620,43 +591,33 @@ function AgentActions({
   )
   const index = rows.findIndex((r) => r.stage_id === agent.current_stage_id)
 
-  async function setCurrent(nextIndex: number) {
-    const next = rows[nextIndex]
-    const current = rows[index]
-    if (!next) return
-
-    if (nextIndex > index && needsGoLiveDate(next.stage.name, agent.target_go_live)) {
-      window.alert(GO_LIVE_BEFORE_TESTING)
+  async function reopenPreviousStage() {
+    const previous = rows[index - 1]
+    if (!previous) return
+    if (
+      !window.confirm(
+        `Reopen ${previous.stage.name}? This resets that stage and every later stage.`,
+      )
+    ) {
       return
     }
-
-    if (current && nextIndex > index) {
-      await supabase
-        .from('agent_stages')
-        .update({ status: 'complete', actual_end: current.actual_end ?? todayISO() })
-        .eq('id', current.id)
-    }
-    if (current && nextIndex < index) {
-      await supabase
-        .from('agent_stages')
-        .update({ status: 'not_started', actual_end: null })
-        .eq('id', current.id)
-    }
-
-    await supabase
-      .from('agent_stages')
-      .update({ status: 'in_progress', actual_start: next.actual_start ?? todayISO() })
-      .eq('id', next.id)
-
-    const { error } = await supabase
-      .from('agents')
-      .update({ current_stage_id: next.stage_id })
-      .eq('id', agent.id)
+    const { error } = await supabase.rpc('reopen_agent_stage', {
+      p_agent_id: agent.id,
+      p_agent_stage_id: previous.id,
+    })
     if (error) window.alert(error.message)
     else await onSaved()
   }
 
   async function setStatus(status: AgentStatus) {
+    if (agent.status === 'complete' && status !== 'complete') {
+      window.alert('Reopen a completed item before changing this agent from Complete.')
+      return
+    }
+    if (status === 'complete' && agent.status !== 'complete') {
+      window.alert('The agent becomes complete automatically when every Live item is complete.')
+      return
+    }
     if (status === 'active' && agent.status === 'pending_approval') {
       const first = rows[0]
       if (first && first.status === 'not_started') {
@@ -754,17 +715,9 @@ function AgentActions({
           type="button"
           className="border-ink-200 text-ink-700 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-200 rounded-full border bg-white px-3.5 py-1.5 text-sm font-semibold transition hover:-translate-y-0.5 disabled:opacity-40 disabled:hover:translate-y-0"
           disabled={index <= 0}
-          onClick={() => void setCurrent(index - 1)}
+          onClick={() => void reopenPreviousStage()}
         >
           Roll back
-        </button>
-        <button
-          type="button"
-          className="bg-brand-600 shadow-brand-600/25 hover:bg-brand-700 rounded-full px-3.5 py-1.5 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-0.5 disabled:opacity-40 disabled:hover:translate-y-0"
-          disabled={index < 0 || index >= rows.length - 1}
-          onClick={() => void setCurrent(index + 1)}
-        >
-          Advance stage
         </button>
         <button
           type="button"
@@ -794,7 +747,9 @@ function AgentActions({
           <option value="active">Active</option>
           <option value="on_hold">On hold</option>
           <option value="cancelled">Cancelled</option>
-          <option value="complete">Complete</option>
+          <option value="complete" disabled={agent.status !== 'complete'}>
+            Complete (automatic)
+          </option>
         </select>
       </div>
 

@@ -475,6 +475,20 @@ export type Database = {
         }
         Returns: undefined
       }
+      set_agent_substep_status: {
+        Args: {
+          p_agent_substep_id: string
+          p_status: ProgressStatus
+        }
+        Returns: string
+      }
+      reopen_agent_stage: {
+        Args: {
+          p_agent_id: string
+          p_agent_stage_id: string
+        }
+        Returns: string
+      }
       create_owner: {
         Args: {
           p_full_name: string
