@@ -2,7 +2,9 @@ import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { OwnerMultiSelect } from '../components/OwnerMultiSelect'
 import { useCatalog, useRealtimeTick } from '../hooks/useTracker'
+import { DateInput } from '../components/DateInput'
 import { isHttpsUrl } from '../lib/sourceLink'
+import { GO_LIVE_REQUIRED, isFilledDate } from '../lib/schedule'
 import { supabase } from '../lib/supabase'
 import { parseSavingsAmount } from '../lib/savings'
 import type { AgentPriority } from '../types/database'
@@ -29,9 +31,13 @@ export function NewAgentPage() {
       setError('Source request must be a valid HTTPS URL.')
       return
     }
+    const goLive = String(form.get('target_go_live') ?? '').trim()
+    if (!isFilledDate(goLive)) {
+      setError(GO_LIVE_REQUIRED)
+      return
+    }
     setSaving(true)
     setError(null)
-    const goLive = String(form.get('target_go_live') ?? '')
     const studioUrl = String(form.get('copilot_studio_url') ?? '').trim()
     if (!isHttpsUrl(studioUrl)) {
       setSaving(false)
@@ -50,7 +56,7 @@ export function NewAgentPage() {
       p_requester_department: String(form.get('requester_department') ?? '').trim(),
       p_description: String(form.get('description') ?? '').trim(),
       p_priority: String(form.get('priority') ?? 'medium') as AgentPriority,
-      p_target_go_live: goLive || null,
+      p_target_go_live: goLive,
       p_owner_ids: ownerIds,
     })
     if (rpcError) {
@@ -144,10 +150,10 @@ export function NewAgentPage() {
         </label>
         <label className="block text-xs font-medium text-ink-500 dark:text-ink-400">
           Target go live
-          <input
-            type="date"
+          <DateInput
             name="target_go_live"
-            className="mt-1 w-full rounded-xl border border-ink-200 dark:border-ink-800 px-3 py-2 text-sm"
+            required
+            className="mt-1 w-full rounded-xl border border-ink-200 px-3 py-2 text-sm text-ink-800 dark:border-ink-800 dark:text-ink-100"
           />
         </label>
         <label className="block text-xs font-medium text-ink-500 dark:text-ink-400">

@@ -5,6 +5,7 @@ import { ScheduleMarker } from '../components/ScheduleMarker'
 import { CheckIcon } from '../components/StageIcon'
 import { OwnerMultiSelect } from '../components/OwnerMultiSelect'
 import { CopyTrackingLink } from '../components/CopyTrackingLink'
+import { DateInput } from '../components/DateInput'
 import {
   orderedAgentStages,
   useAgentDetail,
@@ -17,7 +18,9 @@ import {
   formatDate,
   formatDateTime,
   GO_LIVE_BEFORE_TESTING,
+  GO_LIVE_REQUIRED,
   initials,
+  isFilledDate,
   isLiveAgent,
   isStageBehind,
   needsGoLiveDate,
@@ -667,7 +670,11 @@ function AgentActions({
       return
     }
     const form = new FormData(event.currentTarget)
-    const goLive = String(form.get('target_go_live') ?? '')
+    const goLive = String(form.get('target_go_live') ?? '').trim()
+    if (!isFilledDate(goLive)) {
+      window.alert(GO_LIVE_REQUIRED)
+      return
+    }
     const sourceUrl = String(form.get('source_url') ?? '').trim()
     if (!isHttpsUrl(sourceUrl)) {
       window.alert('Source request must be a valid HTTPS URL.')
@@ -693,7 +700,7 @@ function AgentActions({
         description: String(form.get('description') ?? '').trim(),
         priority: String(form.get('priority') ?? 'medium') as AgentPriority,
         source_url: sourceUrl || null,
-        target_go_live: goLive || null,
+        target_go_live: goLive,
         copilot_studio_url: studioUrl || null,
         savings_amount: savings,
         savings_cadence: String(form.get('savings_cadence') ?? 'yearly') === 'monthly' ? 'monthly' : 'yearly',
@@ -839,9 +846,9 @@ function AgentActions({
             </select>
           </Field>
           <Field label="Target go live">
-            <input
-              type="date"
+            <DateInput
               name="target_go_live"
+              required
               defaultValue={agent.target_go_live ?? ''}
               className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
             />
