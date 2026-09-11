@@ -444,8 +444,8 @@ function StageCard({
               />
             </Field>
             <Field label="Actual start">
-              <input
-                type="date"
+              <DateInput
+                key={row.actual_start ?? 'unset'}
                 disabled={!canEdit}
                 defaultValue={row.actual_start ?? ''}
                 className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
@@ -456,8 +456,8 @@ function StageCard({
               />
             </Field>
             <Field label="Actual end">
-              <input
-                type="date"
+              <DateInput
+                key={row.actual_end ?? 'unset'}
                 disabled={!canEdit}
                 defaultValue={row.actual_end ?? ''}
                 className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
