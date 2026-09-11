@@ -18,6 +18,8 @@ import {
   parseISODate,
   stageStatusFromItems,
   summedDurationDays,
+  wouldEnterOrFinishLive,
+  hasIncompleteItemsBeforeLive,
 } from './schedule'
 import { isMissingFunctionError } from './supabase'
 import type { Stage } from '../types/database'
@@ -202,6 +204,28 @@ describe('stage auto-advance', () => {
     expect(needsGoLiveDate('Testing', '2026-10-01')).toBe(false)
     expect(needsGoLiveDate('Building', null)).toBe(false)
     expect(needsGoLiveDate('Live', null)).toBe(false)
+  })
+
+  it('blocks Live when an earlier stage still has an open item', () => {
+    const rows = [
+      { id: 'a1', stage: { name: 'Requested', sort_order: 1 } },
+      { id: 'a5', stage: { name: 'Live', sort_order: 5 } },
+    ]
+    expect(
+      hasIncompleteItemsBeforeLive(rows, [
+        { agent_stage_id: 'a1', status: 'complete' },
+        { agent_stage_id: 'a5', status: 'not_started' },
+      ]),
+    ).toBe(false)
+    expect(
+      hasIncompleteItemsBeforeLive(rows, [
+        { agent_stage_id: 'a1', status: 'not_started' },
+        { agent_stage_id: 'a5', status: 'complete' },
+      ]),
+    ).toBe(true)
+    expect(wouldEnterOrFinishLive('Testing', 'Live')).toBe(true)
+    expect(wouldEnterOrFinishLive('Live', undefined)).toBe(true)
+    expect(wouldEnterOrFinishLive('Building', 'Testing')).toBe(false)
   })
 
   it('sums catalog sub-step days into the stage default duration', () => {

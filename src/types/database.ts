@@ -482,6 +482,13 @@ export type Database = {
         }
         Returns: undefined
       }
+      has_incomplete_items_before: {
+        Args: {
+          p_agent_id: string
+          p_before_sort_order: number
+        }
+        Returns: boolean
+      }
       set_agent_substep_status: {
         Args: {
           p_agent_substep_id: string

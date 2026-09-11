@@ -164,6 +164,32 @@ export function needsGoLiveDate(
   return nextStageName === 'Testing' && !targetGoLive
 }
 
+export const STAGES_COMPLETE_BEFORE_LIVE =
+  'Finish every item in earlier stages before this request can go Live.'
+
+export function hasIncompleteItemsBeforeLive(
+  rows: Array<{ id: string; stage: Pick<Stage, 'name' | 'sort_order'> }>,
+  substeps: Array<Pick<AgentSubstep, 'agent_stage_id' | 'status'>>,
+): boolean {
+  const live = rows.find((row) => row.stage.name === 'Live')
+  if (!live) return false
+  const earlierIds = new Set(
+    rows
+      .filter((row) => row.stage.sort_order < live.stage.sort_order)
+      .map((row) => row.id),
+  )
+  return substeps.some(
+    (step) => earlierIds.has(step.agent_stage_id) && step.status !== 'complete',
+  )
+}
+
+export function wouldEnterOrFinishLive(
+  currentStageName: string | undefined,
+  nextStageName: string | undefined,
+): boolean {
+  return nextStageName === 'Live' || (!nextStageName && currentStageName === 'Live')
+}
+
 /** True when every item is complete, including a stage that has no items. */
 export function stageItemsComplete(substeps: Pick<AgentSubstep, 'status'>[]): boolean {
   return substeps.every((step) => step.status === 'complete')
