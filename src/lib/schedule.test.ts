@@ -15,6 +15,7 @@ import {
   needsGoLiveDate,
   nextStageAfter,
   parseISODate,
+  stageStatusFromItems,
 } from './schedule'
 import { isMissingFunctionError } from './supabase'
 import type { Stage } from '../types/database'
@@ -214,6 +215,29 @@ describe('stage auto-advance', () => {
         { status: 'complete' },
       ]),
     ).toBe(true)
+  })
+
+  it('derives stage status from the current item state', () => {
+    expect(stageStatusFromItems([])).toBe('not_started')
+    expect(stageStatusFromItems([{ status: 'not_started' }])).toBe('not_started')
+    expect(
+      stageStatusFromItems([{ status: 'complete' }, { status: 'not_started' }]),
+    ).toBe('in_progress')
+    expect(
+      stageStatusFromItems([{ status: 'complete' }, { status: 'complete' }]),
+    ).toBe('complete')
+    expect(
+      stageStatusFromItems([{ status: 'complete' }, { status: 'blocked' }]),
+    ).toBe('blocked')
+  })
+
+  it('reverts complete to in progress or not started when work is undone', () => {
+    expect(
+      stageStatusFromItems([{ status: 'complete' }, { status: 'not_started' }]),
+    ).toBe('in_progress')
+    expect(
+      stageStatusFromItems([{ status: 'not_started' }, { status: 'not_started' }]),
+    ).toBe('not_started')
   })
 })
 

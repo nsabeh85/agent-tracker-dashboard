@@ -178,6 +178,21 @@ export function allSubstepsComplete(substeps: Pick<AgentSubstep, 'status'>[]): b
   return substeps.length > 0 && stageItemsComplete(substeps)
 }
 
+/** Derive the stage label from its items so undoing work cannot leave it stale. */
+export function stageStatusFromItems(
+  substeps: Pick<AgentSubstep, 'status'>[],
+): ProgressStatus {
+  if (
+    substeps.length === 0 ||
+    substeps.every((step) => step.status === 'not_started')
+  ) {
+    return 'not_started'
+  }
+  if (substeps.every((step) => step.status === 'complete')) return 'complete'
+  if (substeps.some((step) => step.status === 'blocked')) return 'blocked'
+  return 'in_progress'
+}
+
 export function progressTone(
   stageSortOrder: number,
   currentSortOrder: number,
