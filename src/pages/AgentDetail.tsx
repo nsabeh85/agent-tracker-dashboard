@@ -34,7 +34,7 @@ import {
 import { copilotStudioLabel } from '../lib/copilotStudioLink'
 import { descriptionWithoutSource, isHttpsUrl, sourceLabel } from '../lib/sourceLink'
 import { supabase } from '../lib/supabase'
-import { parseSavingsAmount, savingsLabel } from '../lib/savings'
+import { formatUsd, liveRealizedSavings, parseSavingsAmount, savingsLabel } from '../lib/savings'
 import type {
   Admin,
   AgentPriority,
@@ -91,6 +91,9 @@ export function AgentDetailPage() {
   const liveSavings = isLiveAgent(agent, stages)
     ? savingsLabel(agent.savings_amount, agent.savings_cadence)
     : null
+  const savedSoFar = isLiveAgent(agent, stages)
+    ? liveRealizedSavings(agent, stages)
+    : 0
   const displayDescription = descriptionWithoutSource(agent.description, agent.source_url)
 
   return (
@@ -161,6 +164,7 @@ export function AgentDetailPage() {
             <Chip label="Stage" value={current?.name ?? '—'} />
             <Chip label="Status" value={statusLabel(agent.status)} />
             {liveSavings ? <Chip label="Savings" value={liveSavings} /> : null}
+            {savedSoFar > 0 ? <Chip label="Saved so far" value={formatUsd(savedSoFar)} /> : null}
           </div>
         </div>
       </header>

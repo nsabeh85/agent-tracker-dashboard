@@ -5,7 +5,7 @@ import {
   isInFlight,
   isLiveAgent,
 } from '../lib/schedule'
-import { formatUsd, totalLiveAnnualSavings } from '../lib/savings'
+import { formatUsd, totalLiveAnnualSavings, totalLiveRealizedSavings } from '../lib/savings'
 import type { DashboardMetric } from '../lib/dashboard'
 import type { AgentWithStages, Stage } from '../types/database'
 
@@ -163,14 +163,30 @@ export function SummaryStrip({ agents, stages, activeMetric, onMetricChange }: P
           />
         </div>
 
-        <p className="mt-5 rounded-2xl bg-white/10 px-4 py-3 ring-1 ring-white/15">
-          <span className="block text-[10px] font-bold tracking-[0.16em] text-white/60 uppercase">
-            Estimated annual savings (live)
-          </span>
-          <span className="mt-1 block text-2xl font-bold tracking-tight text-white">
-            {formatUsd(totalLiveAnnualSavings(agents, stages))}
-          </span>
-        </p>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <p className="rounded-2xl bg-white/10 px-4 py-3 ring-1 ring-white/15">
+            <span className="block text-[10px] font-bold tracking-[0.16em] text-white/60 uppercase">
+              Estimated annual savings
+            </span>
+            <span className="mt-1 block text-2xl font-bold tracking-tight text-white">
+              {formatUsd(totalLiveAnnualSavings(agents, stages))}
+            </span>
+            <span className="mt-1 block text-xs text-white/65">
+              Full-year projection if live agents keep saving at their current rate.
+            </span>
+          </p>
+          <p className="rounded-2xl bg-white/10 px-4 py-3 ring-1 ring-white/15">
+            <span className="block text-[10px] font-bold tracking-[0.16em] text-white/60 uppercase">
+              Saved so far
+            </span>
+            <span className="mt-1 block text-2xl font-bold tracking-tight text-white">
+              {formatUsd(totalLiveRealizedSavings(agents, stages))}
+            </span>
+            <span className="mt-1 block text-xs text-white/65">
+              Each live month counted once. $1,000 / mo for 3 months is $3,000.
+            </span>
+          </p>
+        </div>
       </div>
     </section>
   )

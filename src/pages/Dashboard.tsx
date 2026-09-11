@@ -21,7 +21,7 @@ import {
   statusLabel,
 } from '../lib/schedule'
 import { copilotStudioLabel } from '../lib/copilotStudioLink'
-import { savingsLabel } from '../lib/savings'
+import { formatUsd, liveRealizedSavings, savingsLabel } from '../lib/savings'
 import type { AgentPriority, AgentWithStages, Stage } from '../types/database'
 
 type StatusFilter = 'all' | 'pending_approval' | 'active'
@@ -209,6 +209,7 @@ function AgentListItem({
   const behind = isAgentBehind(agent, agent.agent_stages, stages)
   const live = isLiveAgent(agent, stages)
   const savings = live ? savingsLabel(agent.savings_amount, agent.savings_cadence) : null
+  const savedSoFar = live ? liveRealizedSavings(agent, stages) : 0
   const ownerSummary =
     agent.agent_owners.map((assignment) => assignment.owner.full_name).join(', ') ||
     agent.assigned_to
@@ -312,6 +313,7 @@ function AgentListItem({
             {savings ? (
               <p className="text-emerald-700 dark:text-emerald-400 mt-1 text-xs font-semibold">
                 Saves {savings}
+                {savedSoFar > 0 ? ` · ${formatUsd(savedSoFar)} so far` : ''}
               </p>
             ) : null}
           </div>

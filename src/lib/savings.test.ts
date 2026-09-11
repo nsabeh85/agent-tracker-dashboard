@@ -2,10 +2,14 @@ import { describe, expect, it } from 'vitest'
 import {
   annualizedSavings,
   liveAgentsWithSavings,
+  liveRealizedSavings,
+  monthsInService,
   parseSavingsAmount,
+  realizedSavings,
   savingsByDepartment,
   savingsLabel,
   totalLiveAnnualSavings,
+  totalLiveRealizedSavings,
 } from './savings'
 import type { AgentWithStages, Stage } from '../types/database'
 
@@ -20,12 +24,14 @@ function agent({
   amount = null,
   cadence = 'yearly',
   stageId = 'live',
+  liveStart = '2026-01-15',
 }: {
   id: string
   department?: string
   amount?: number | null
   cadence?: 'monthly' | 'yearly'
   stageId?: string
+  liveStart?: string | null
 }): AgentWithStages {
   return {
     id,
@@ -35,7 +41,7 @@ function agent({
     description: '',
     priority: 'medium',
     current_stage_id: stageId,
-    target_go_live: null,
+    target_go_live: liveStart,
     assigned_to: 'Nabih Sabeh',
     status: 'active',
     source_url: null,
@@ -46,7 +52,20 @@ function agent({
     savings_cadence: cadence,
     copilot_studio_url: null,
     agent_owners: [],
-    agent_stages: [],
+    agent_stages: liveStart
+      ? [
+          {
+            id: `${id}-live-stage`,
+            agent_id: id,
+            stage_id: 'live',
+            status: 'in_progress',
+            expected_duration_days: 30,
+            actual_start: liveStart,
+            actual_end: null,
+            agent_stage_owners: [],
+          },
+        ]
+      : [],
   }
 }
 
@@ -93,5 +112,22 @@ describe('savings math', () => {
       'legal-a',
       'legal-b',
     ])
+  })
+
+  it('counts realized savings as each month live, not a full-year projection', () => {
+    const today = new Date(2026, 2, 15)
+    expect(monthsInService('2026-01-15', today)).toBe(3)
+    expect(realizedSavings(1000, 'monthly', '2026-01-15', today)).toBe(3000)
+    expect(realizedSavings(12000, 'yearly', '2026-01-15', today)).toBe(3000)
+    expect(realizedSavings(1000, 'monthly', '2026-03-15', today)).toBe(1000)
+
+    const monthly = agent({
+      id: 'legal-a',
+      amount: 1000,
+      cadence: 'monthly',
+      liveStart: '2026-01-15',
+    })
+    expect(liveRealizedSavings(monthly, stages, today)).toBe(3000)
+    expect(totalLiveRealizedSavings([monthly], stages, today)).toBe(3000)
   })
 })
