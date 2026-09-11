@@ -65,6 +65,14 @@ export type PublicSubstep = {
   status: ProgressStatus
 }
 
+export type PublicComment = {
+  id: string
+  author_name: string
+  body: string
+  created_at: string
+  agent_stage_id: string | null
+}
+
 export type PublicAgent = {
   title: string
   description: string
@@ -79,6 +87,7 @@ export type PublicAgent = {
   created_at: string
   stages: PublicStage[]
   substeps: PublicSubstep[]
+  comments: PublicComment[]
 }
 
 const STATUSES = new Set<AgentStatus>([
@@ -164,6 +173,27 @@ export function parsePublicAgent(value: unknown): PublicAgent | null {
       })
     : []
 
+  const comments = Array.isArray(row.comments)
+    ? row.comments.flatMap((item) => {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) return []
+        const comment = item as Record<string, unknown>
+        const id = asString(comment.id)
+        const authorName = asString(comment.author_name)
+        const body = asString(comment.body)
+        const createdAt = asString(comment.created_at)
+        if (!id || !authorName || !body || !createdAt) return []
+        return [
+          {
+            id,
+            author_name: authorName,
+            body,
+            created_at: createdAt,
+            agent_stage_id: asString(comment.agent_stage_id),
+          } satisfies PublicComment,
+        ]
+      })
+    : []
+
   return {
     title,
     description: asString(row.description) ?? '',
@@ -178,5 +208,6 @@ export function parsePublicAgent(value: unknown): PublicAgent | null {
     created_at: asString(row.created_at) ?? '',
     stages,
     substeps,
+    comments,
   }
 }

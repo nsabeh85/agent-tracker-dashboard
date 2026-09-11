@@ -66,6 +66,43 @@ describe('parsePublicAgent', () => {
     })
     expect(parsed?.title).toBe('Invoice bot')
     expect(parsed?.stages).toHaveLength(1)
+    expect(parsed?.comments).toEqual([])
+  })
+
+  it('includes view-only comments without requiring an author email', () => {
+    const parsed = parsePublicAgent({
+      title: 'Invoice bot',
+      description: '',
+      source_url: null,
+      requester_name: 'Sam Lee',
+      requester_department: 'Finance',
+      priority: 'medium',
+      status: 'active',
+      owners: 'Lauren Lawhon',
+      current_stage_id: 'stage-1',
+      target_go_live: null,
+      created_at: '2026-09-01T00:00:00Z',
+      stages: [],
+      substeps: [],
+      comments: [
+        {
+          id: 'c1',
+          author_name: 'Nabih Sabeh',
+          body: 'Waiting on UAT.',
+          created_at: '2026-09-10T12:00:00Z',
+          agent_stage_id: 'as-4',
+        },
+      ],
+    })
+    expect(parsed?.comments).toEqual([
+      {
+        id: 'c1',
+        author_name: 'Nabih Sabeh',
+        body: 'Waiting on UAT.',
+        created_at: '2026-09-10T12:00:00Z',
+        agent_stage_id: 'as-4',
+      },
+    ])
   })
 
   it('rejects incomplete payloads', () => {

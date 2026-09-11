@@ -166,7 +166,11 @@ export function useAgentDetail(agentId: string | undefined, tick: number) {
   return { agent, substeps, comments, loading, error, reload }
 }
 
-function toPublicAgent(agent: AgentWithStages, substeps: AgentSubstep[]): PublicAgent {
+function toPublicAgent(
+  agent: AgentWithStages,
+  substeps: AgentSubstep[],
+  comments: Comment[] = [],
+): PublicAgent {
   return {
     title: agent.title,
     description: agent.description,
@@ -199,6 +203,13 @@ function toPublicAgent(agent: AgentWithStages, substeps: AgentSubstep[]): Public
       sort_order: step.sort_order,
       status: step.status,
     })),
+    comments: comments.map((comment) => ({
+      id: comment.id,
+      author_name: comment.author_name,
+      body: comment.body,
+      created_at: comment.created_at,
+      agent_stage_id: comment.agent_stage_id,
+    })),
   }
 }
 
@@ -221,6 +232,7 @@ export function usePublicAgent(token: string | undefined) {
           ? toPublicAgent(
               match,
               demoAgentSubsteps.filter((row) => row.agent_id === match.id),
+              demoComments.filter((row) => row.agent_id === match.id),
             )
           : null,
       )

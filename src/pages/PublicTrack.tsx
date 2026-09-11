@@ -5,12 +5,13 @@ import { ScheduleMarker } from '../components/ScheduleMarker'
 import { CheckIcon } from '../components/StageIcon'
 import { ThemeToggle } from '../components/ThemeToggle'
 import { usePublicAgent } from '../hooks/useTracker'
-import { dueLabel, formatDate, isLiveAgent, statusLabel } from '../lib/schedule'
+import { dueLabel, formatDate, formatDateTime, initials, isLiveAgent, statusLabel } from '../lib/schedule'
 import { descriptionWithoutSource, sourceLabel } from '../lib/sourceLink'
 import { isDemoMode } from '../lib/supabase'
 import {
   isTrackingToken,
   type PublicAgent,
+  type PublicComment,
   type PublicStage,
   type PublicSubstep,
 } from '../lib/tracking'
@@ -195,7 +196,63 @@ function PublicAgentView({ agent }: { agent: PublicAgent }) {
           ))}
         </div>
       </Dropdown>
+      <Dropdown
+        title="Comments"
+        summary={
+          agent.comments.length === 0
+            ? 'No comments yet'
+            : `${agent.comments.length} from the tracker team`
+        }
+      >
+        <p className="text-ink-400 mb-3 text-xs">
+          These updates are from the tracker team. This page is view only.
+        </p>
+        <PublicCommentList comments={agent.comments} stages={agent.stages} />
+      </Dropdown>
     </>
+  )
+}
+
+function PublicCommentList({
+  comments,
+  stages,
+}: {
+  comments: PublicComment[]
+  stages: PublicStage[]
+}) {
+  const stageName = (id: string | null) => stages.find((stage) => stage.id === id)?.name
+
+  if (comments.length === 0) {
+    return <p className="text-ink-400 text-sm">No comments yet.</p>
+  }
+
+  return (
+    <ul className="space-y-2">
+      {comments.map((comment) => (
+        <li
+          key={comment.id}
+          className="border-ink-200/70 dark:border-ink-800 dark:bg-ink-950/40 flex gap-3 rounded-2xl border bg-white px-4 py-3"
+        >
+          <span className="bg-brand-100 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300 mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold">
+            {initials(comment.author_name)}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-baseline gap-2 text-sm">
+              <span className="text-ink-900 dark:text-ink-50 font-bold">{comment.author_name}</span>
+              <span className="text-ink-400 text-xs">{formatDateTime(comment.created_at)}</span>
+              {comment.agent_stage_id ? (
+                <span className="bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300 rounded-full px-2 py-0.5 text-xs font-semibold">
+                  {stageName(comment.agent_stage_id)}
+                </span>
+              ) : null}
+            </div>
+            <p className="text-ink-700 dark:text-ink-200 mt-1 text-sm leading-relaxed whitespace-pre-wrap">
+              {comment.body}
+            </p>
+          </div>
+        </li>
+      ))}
+    </ul>
   )
 }
 
