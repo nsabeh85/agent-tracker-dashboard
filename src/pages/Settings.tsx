@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useCatalog, useRealtimeTick } from '../hooks/useTracker'
 import { isDigitalRealtyEmail, useAuth } from '../lib/auth'
+import { summedDurationDays } from '../lib/schedule'
 import { supabase } from '../lib/supabase'
 import type { Department, Owner, Stage, Substep } from '../types/database'
 
@@ -211,6 +212,28 @@ export function SettingsPage() {
     else await reload()
   }
 
+  async function syncStageDurationFromSubsteps(
+    stageId: string,
+    siblings: Array<Pick<Substep, 'default_duration_days'>>,
+  ) {
+    if (siblings.length === 0) {
+      await reload()
+      return
+    }
+    const days = summedDurationDays(siblings)
+    const stage = stages.find((entry) => entry.id === stageId)
+    if (!stage || stage.default_duration_days === days) {
+      await reload()
+      return
+    }
+    const { error: updateError } = await supabase
+      .from('stages')
+      .update({ default_duration_days: days })
+      .eq('id', stageId)
+    if (updateError) setError(updateError.message)
+    else await reload()
+  }
+
   async function addSubstep(stage: Stage) {
     const name = window.prompt(`Sub-step under ${stage.name}`)
     if (!name?.trim()) return
@@ -239,17 +262,34 @@ export function SettingsPage() {
   async function removeSubstep(step: Substep) {
     if (!window.confirm(`Remove “${step.name}”?`)) return
     const { error: deleteError } = await supabase.from('substeps').delete().eq('id', step.id)
-    if (deleteError) setError(deleteError.message)
-    else await reload()
+    if (deleteError) {
+      setError(deleteError.message)
+      return
+    }
+    await syncStageDurationFromSubsteps(
+      step.stage_id,
+      substeps.filter((entry) => entry.stage_id === step.stage_id && entry.id !== step.id),
+    )
   }
 
   async function updateSubDuration(step: Substep, days: number | null) {
+    if (days !== null && !Number.isFinite(days)) return
     const { error: updateError } = await supabase
       .from('substeps')
       .update({ default_duration_days: days })
       .eq('id', step.id)
-    if (updateError) setError(updateError.message)
-    else await reload()
+    if (updateError) {
+      setError(updateError.message)
+      return
+    }
+    await syncStageDurationFromSubsteps(
+      step.stage_id,
+      substeps
+        .filter((entry) => entry.stage_id === step.stage_id)
+        .map((entry) =>
+          entry.id === step.id ? { ...entry, default_duration_days: days } : entry,
+        ),
+    )
   }
 
   async function moveSubstep(step: Substep, direction: -1 | 1) {
@@ -475,6 +515,7 @@ export function SettingsPage() {
                 <input
                   type="number"
                   min={0}
+                  key={stage.default_duration_days}
                   defaultValue={stage.default_duration_days}
                   className="ml-2 w-20 rounded-lg border border-ink-200 dark:border-ink-800 px-2 py-1 text-sm"
                   onBlur={(e) => {

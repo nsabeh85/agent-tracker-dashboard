@@ -17,6 +17,7 @@ import {
   nextStageAfter,
   parseISODate,
   stageStatusFromItems,
+  summedDurationDays,
 } from './schedule'
 import { isMissingFunctionError } from './supabase'
 import type { Stage } from '../types/database'
@@ -201,6 +202,13 @@ describe('stage auto-advance', () => {
     expect(needsGoLiveDate('Testing', '2026-10-01')).toBe(false)
     expect(needsGoLiveDate('Building', null)).toBe(false)
     expect(needsGoLiveDate('Live', null)).toBe(false)
+  })
+
+  it('sums catalog sub-step days into the stage default duration', () => {
+    expect(summedDurationDays([{ default_duration_days: 3 }, { default_duration_days: 2 }])).toBe(5)
+    expect(summedDurationDays([{ default_duration_days: 3 }, { default_duration_days: 3 }])).toBe(6)
+    expect(summedDurationDays([{ default_duration_days: 3 }, { default_duration_days: null }])).toBe(3)
+    expect(summedDurationDays([])).toBe(0)
   })
 
   it('treats only an explicit yyyy-mm-dd value as a chosen date', () => {
