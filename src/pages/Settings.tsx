@@ -528,20 +528,6 @@ export function SettingsPage() {
                 {kids.map((step) => (
                   <li key={step.id} className="flex flex-wrap items-center gap-2 text-sm">
                     <span className="flex-1 text-ink-800 dark:text-ink-100">{step.name}</span>
-                    <button
-                      type="button"
-                      className="text-xs text-ink-500 dark:text-ink-400"
-                      onClick={() => void moveSubstep(step, -1)}
-                    >
-                      Up
-                    </button>
-                    <button
-                      type="button"
-                      className="text-xs text-ink-500 dark:text-ink-400"
-                      onClick={() => void moveSubstep(step, 1)}
-                    >
-                      Down
-                    </button>
                     <input
                       type="number"
                       min={0}
@@ -556,6 +542,20 @@ export function SettingsPage() {
                     />
                     <button type="button" className="text-xs text-ink-500 dark:text-ink-400" onClick={() => void renameSubstep(step)}>
                       Rename
+                    </button>
+                    <button
+                      type="button"
+                      className="text-xs text-ink-500 dark:text-ink-400"
+                      onClick={() => void moveSubstep(step, -1)}
+                    >
+                      Up
+                    </button>
+                    <button
+                      type="button"
+                      className="text-xs text-ink-500 dark:text-ink-400"
+                      onClick={() => void moveSubstep(step, 1)}
+                    >
+                      Down
                     </button>
                     <button type="button" className="text-xs text-red-500 dark:text-red-400" onClick={() => void removeSubstep(step)}>
                       Remove
