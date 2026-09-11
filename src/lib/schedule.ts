@@ -149,6 +149,13 @@ export function isFilledDate(value: string | null | undefined): boolean {
   return Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value.trim()))
 }
 
+/** Catalog stage duration is the sum of its sub-step day counts. */
+export function summedDurationDays(
+  steps: Array<{ default_duration_days?: number | null }>,
+): number {
+  return steps.reduce((total, step) => total + (step.default_duration_days ?? 0), 0)
+}
+
 /** Blocks moving into Testing when go-live was never set. */
 export function needsGoLiveDate(
   nextStageName: string | undefined,
