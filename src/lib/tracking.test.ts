@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  isTrackingToken,
-  parsePublicAgent,
-  trackingMailto,
-  trackingPath,
-  trackingUrl,
-} from './tracking'
+import { isTrackingToken, parsePublicAgent, trackingPath, trackingUrl } from './tracking'
 
 describe('tracking helpers', () => {
   it('accepts 32-character hex tokens only', () => {
@@ -22,18 +16,6 @@ describe('tracking helpers', () => {
     )
   })
 
-  it('opens a mail draft that includes the tracking URL', () => {
-    const href = trackingMailto({
-      to: 'requester@example.com',
-      title: 'Invoice bot',
-      url: 'https://tracker.example.com/track/ab',
-      requesterName: 'Sam Lee',
-    })
-    expect(href.startsWith('mailto:requester%40example.com?')).toBe(true)
-    expect(decodeURIComponent(href)).toContain('Invoice bot')
-    expect(decodeURIComponent(href)).toContain('https://tracker.example.com/track/ab')
-    expect(decodeURIComponent(href)).toContain('Hi Sam')
-  })
 })
 
 describe('parsePublicAgent', () => {

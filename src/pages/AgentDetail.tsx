@@ -203,11 +203,7 @@ export function AgentDetailPage() {
             departments={departments}
             onSaved={reload}
           />
-          <CopyTrackingLink
-            token={agent.public_token}
-            title={agent.title}
-            requesterName={agent.requester_name}
-          />
+          <CopyTrackingLink token={agent.public_token} />
         </>
       ) : null}
 

@@ -14,38 +14,6 @@ export function isTrackingToken(value: string | null | undefined): value is stri
   return /^[0-9a-f]{32}$/.test(value)
 }
 
-export function isEmail(value: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
-}
-
-/** Prefills the admin's mail client so the tracking URL is sent from their inbox. */
-export function trackingMailto(args: {
-  to: string
-  title: string
-  url: string
-  requesterName?: string
-}): string {
-  const to = args.to.trim()
-  const first = args.requesterName?.trim().split(/\s+/)[0]
-  const subject = `Track your agent request: ${args.title}`
-  const body = [
-    `Hi${first ? ` ${first}` : ''},`,
-    '',
-    `You can follow progress on “${args.title}” here (no login required):`,
-    args.url,
-    '',
-    'This page is only for this request. Bookmark the link and check back for updates.',
-    '',
-    'Thanks,',
-    'PCT team',
-  ].join('\n')
-  const params = [
-    `subject=${encodeURIComponent(subject)}`,
-    `body=${encodeURIComponent(body)}`,
-  ].join('&')
-  return `mailto:${encodeURIComponent(to)}?${params}`
-}
-
 export type PublicStage = {
   id: string
   stage_id: string
