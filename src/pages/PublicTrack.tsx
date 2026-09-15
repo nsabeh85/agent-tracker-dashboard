@@ -6,6 +6,7 @@ import { CheckIcon } from '../components/StageIcon'
 import { ThemeToggle } from '../components/ThemeToggle'
 import { usePublicAgent } from '../hooks/useTracker'
 import { dueLabel, formatDate, formatDateTime, initials, isLiveAgent, statusLabel } from '../lib/schedule'
+import { replyIndentClass, threadComments } from '../lib/comments'
 import { descriptionWithoutSource, sourceLabel } from '../lib/sourceLink'
 import { isDemoMode } from '../lib/supabase'
 import {
@@ -219,6 +220,7 @@ function PublicCommentList({
   const stageName = (id: string | null) => stages.find((stage) => stage.id === id)?.name
   const commentAuthor = (id: string | null) =>
     comments.find((comment) => comment.id === id)?.author_name
+  const threaded = threadComments(comments)
 
   if (comments.length === 0) {
     return <p className="text-ink-400 text-sm">No comments yet.</p>
@@ -226,12 +228,13 @@ function PublicCommentList({
 
   return (
     <ul className="space-y-2">
-      {comments.map((comment) => (
+      {threaded.map(({ comment, depth }) => (
         <li
           key={comment.id}
           className={[
             'border-ink-200/70 dark:border-ink-800 dark:bg-ink-950/40 flex gap-3 rounded-2xl border bg-white px-4 py-3',
-            comment.parent_comment_id ? 'ml-6 md:ml-10' : '',
+            replyIndentClass(depth),
+            depth > 0 ? 'border-l-brand-300 dark:border-l-brand-500/50 border-l-4' : '',
           ].join(' ')}
         >
           <span className="bg-brand-100 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300 mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold">
@@ -241,9 +244,9 @@ function PublicCommentList({
             <div className="flex flex-wrap items-baseline gap-2 text-sm">
               <span className="text-ink-900 dark:text-ink-50 font-bold">{comment.author_name}</span>
               <span className="text-ink-400 text-xs">{formatDateTime(comment.created_at)}</span>
-              {comment.parent_comment_id ? (
+              {depth > 0 ? (
                 <span className="text-ink-400 text-xs">
-                  replied to {commentAuthor(comment.parent_comment_id) ?? 'a comment'}
+                  replying to {commentAuthor(comment.parent_comment_id) ?? 'a comment'}
                 </span>
               ) : null}
               {comment.agent_stage_id ? (

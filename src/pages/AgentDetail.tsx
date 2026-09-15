@@ -32,6 +32,7 @@ import {
   wouldEnterOrFinishLive,
 } from '../lib/schedule'
 import { copilotStudioLabel } from '../lib/copilotStudioLink'
+import { canManageComment, replyIndentClass, threadComments } from '../lib/comments'
 import { descriptionWithoutSource, isHttpsUrl, sourceLabel } from '../lib/sourceLink'
 import { supabase } from '../lib/supabase'
 import { formatUsd, liveRealizedSavings, parseSavingsAmount, savingsLabel } from '../lib/savings'
@@ -989,6 +990,7 @@ function CommentThread({
   const stageName = (id: string | null) => rows.find((r) => r.id === id)?.stage.name
   const commentAuthor = (id: string | null) =>
     comments.find((comment) => comment.id === id)?.author_name
+  const threaded = threadComments(comments)
 
   return (
     <section className="space-y-3">
@@ -1051,12 +1053,13 @@ function CommentThread({
       )}
 
       <ul className="space-y-2">
-        {comments.map((comment) => (
+        {threaded.map(({ comment, depth }) => (
           <li
             key={comment.id}
             className={[
               'border-ink-200/70 dark:border-ink-800 dark:bg-ink-900 flex gap-3 rounded-2xl border bg-white px-4 py-3 shadow-sm',
-              comment.parent_comment_id ? 'ml-6 md:ml-10' : '',
+              replyIndentClass(depth),
+              depth > 0 ? 'border-l-brand-300 dark:border-l-brand-500/50 border-l-4' : '',
             ].join(' ')}
           >
             <span className="bg-brand-100 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300 mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold">
@@ -1070,9 +1073,9 @@ function CommentThread({
                 <span className="text-ink-400 text-xs">
                   {formatDateTime(comment.created_at)}
                 </span>
-                {comment.parent_comment_id ? (
+                {depth > 0 ? (
                   <span className="text-ink-400 text-xs">
-                    replied to {commentAuthor(comment.parent_comment_id) ?? 'a comment'}
+                    replying to {commentAuthor(comment.parent_comment_id) ?? 'a comment'}
                   </span>
                 ) : null}
                 {comment.agent_stage_id ? (
@@ -1101,7 +1104,7 @@ function CommentThread({
                     Reply
                   </button>
                 ) : null}
-                {author?.email.toLowerCase() === comment.author_email.toLowerCase() ? (
+                {canManageComment(comment.author_email, author?.email) ? (
                   <>
                     <button
                       type="button"
