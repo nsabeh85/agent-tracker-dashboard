@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { Fragment, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ProgressBar } from '../components/ProgressBar'
 import { ScheduleMarker } from '../components/ScheduleMarker'
@@ -939,29 +939,44 @@ function CommentThread({
 }) {
   const [body, setBody] = useState('')
   const [stageId, setStageId] = useState('')
-  const [replyTo, setReplyTo] = useState<Comment | null>(null)
+  const [replyToId, setReplyToId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
-  async function submit(e: FormEvent) {
-    e.preventDefault()
-    if (!author || !body.trim()) return
+  async function postComment(input: {
+    body: string
+    agentStageId: string | null
+    parentCommentId: string | null
+  }): Promise<boolean> {
+    const text = input.body.trim()
+    if (!author || !text) return false
     setSaving(true)
     const { error } = await supabase.from('comments').insert({
       agent_id: agentId,
-      agent_stage_id: stageId || null,
+      agent_stage_id: input.agentStageId,
       author_email: author.email,
       author_name: author.display_name,
-      body: body.trim(),
-      parent_comment_id: replyTo?.id ?? null,
+      body: text,
+      parent_comment_id: input.parentCommentId,
     })
     setSaving(false)
-    if (error) window.alert(error.message)
-    else {
-      setBody('')
-      setStageId('')
-      setReplyTo(null)
-      await onSaved()
+    if (error) {
+      window.alert(error.message)
+      return false
     }
+    await onSaved()
+    return true
+  }
+
+  async function submit(e: FormEvent) {
+    e.preventDefault()
+    const posted = await postComment({
+      body,
+      agentStageId: stageId || null,
+      parentCommentId: null,
+    })
+    if (!posted) return
+    setBody('')
+    setStageId('')
   }
 
   async function editComment(comment: Comment) {
@@ -1007,25 +1022,9 @@ function CommentThread({
           value={body}
           onChange={(e) => setBody(e.target.value)}
           rows={3}
-          placeholder={
-            replyTo
-              ? `Reply to ${replyTo.author_name}…`
-              : 'Post an update for everyone watching this agent…'
-          }
+          placeholder="Post an update for everyone watching this agent…"
           className="border-ink-200 focus:border-brand-500 focus:ring-brand-100 dark:border-ink-700 dark:text-ink-100 dark:focus:ring-brand-500/20 w-full resize-y rounded-xl border px-3 py-2.5 text-sm outline-none focus:ring-4"
         />
-        {replyTo ? (
-          <p className="text-ink-500 dark:text-ink-400 flex items-center gap-2 text-xs">
-            Replying to {replyTo.author_name}
-            <button
-              type="button"
-              className="font-semibold underline"
-              onClick={() => setReplyTo(null)}
-            >
-              Cancel
-            </button>
-          </p>
-        ) : null}
         <div className="flex flex-wrap items-center gap-2">
           <select
             value={stageId}
@@ -1054,82 +1053,157 @@ function CommentThread({
 
       <ul className="space-y-2">
         {threaded.map(({ comment, depth }) => (
-          <li
-            key={comment.id}
-            className={[
-              'border-ink-200/70 dark:border-ink-800 dark:bg-ink-900 flex gap-3 rounded-2xl border bg-white px-4 py-3 shadow-sm',
-              replyIndentClass(depth),
-              depth > 0 ? 'border-l-brand-300 dark:border-l-brand-500/50 border-l-4' : '',
-            ].join(' ')}
-          >
-            <span className="bg-brand-100 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300 mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold">
-              {initials(comment.author_name)}
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-baseline gap-2 text-sm">
-                <span className="text-ink-900 dark:text-ink-50 font-bold">
-                  {comment.author_name}
-                </span>
-                <span className="text-ink-400 text-xs">
-                  {formatDateTime(comment.created_at)}
-                </span>
-                {depth > 0 ? (
+          <Fragment key={comment.id}>
+            <li
+              className={[
+                'border-ink-200/70 dark:border-ink-800 dark:bg-ink-900 flex gap-3 rounded-2xl border bg-white px-4 py-3 shadow-sm',
+                replyIndentClass(depth),
+                depth > 0 ? 'border-l-brand-300 dark:border-l-brand-500/50 border-l-4' : '',
+              ].join(' ')}
+            >
+              <span className="bg-brand-100 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300 mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold">
+                {initials(comment.author_name)}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-baseline gap-2 text-sm">
+                  <span className="text-ink-900 dark:text-ink-50 font-bold">
+                    {comment.author_name}
+                  </span>
                   <span className="text-ink-400 text-xs">
-                    replying to {commentAuthor(comment.parent_comment_id) ?? 'a comment'}
+                    {formatDateTime(comment.created_at)}
                   </span>
-                ) : null}
-                {comment.agent_stage_id ? (
-                  <span className="bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300 rounded-full px-2 py-0.5 text-xs font-semibold">
-                    {stageName(comment.agent_stage_id)}
-                  </span>
-                ) : null}
-              </div>
-              <p className="text-ink-700 dark:text-ink-300 mt-1.5 text-sm leading-relaxed whitespace-pre-wrap">
-                {comment.body}
-              </p>
-              <div className="mt-2 flex flex-wrap gap-3 text-xs">
-                <button
-                  type="button"
-                  className="text-ink-500 dark:text-ink-400 font-semibold"
-                  onClick={() => void copyComment(comment)}
-                >
-                  Copy
-                </button>
-                {author ? (
+                  {depth > 0 ? (
+                    <span className="text-ink-400 text-xs">
+                      replying to {commentAuthor(comment.parent_comment_id) ?? 'a comment'}
+                    </span>
+                  ) : null}
+                  {comment.agent_stage_id ? (
+                    <span className="bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300 rounded-full px-2 py-0.5 text-xs font-semibold">
+                      {stageName(comment.agent_stage_id)}
+                    </span>
+                  ) : null}
+                </div>
+                <p className="text-ink-700 dark:text-ink-300 mt-1.5 text-sm leading-relaxed whitespace-pre-wrap">
+                  {comment.body}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-3 text-xs">
                   <button
                     type="button"
-                    className="text-brand-700 dark:text-brand-300 font-semibold"
-                    onClick={() => setReplyTo(comment)}
+                    className="text-ink-500 dark:text-ink-400 font-semibold"
+                    onClick={() => void copyComment(comment)}
                   >
-                    Reply
+                    Copy
                   </button>
-                ) : null}
-                {canManageComment(comment.author_email, author?.email) ? (
-                  <>
+                  {author ? (
                     <button
                       type="button"
-                      className="text-ink-500 dark:text-ink-400 font-semibold"
-                      onClick={() => void editComment(comment)}
+                      aria-expanded={replyToId === comment.id}
+                      className="text-brand-700 dark:text-brand-300 font-semibold"
+                      onClick={() => setReplyToId(replyToId === comment.id ? null : comment.id)}
                     >
-                      Edit
+                      Reply
                     </button>
-                    <button
-                      type="button"
-                      className="font-semibold text-red-600 dark:text-red-400"
-                      onClick={() => void deleteComment(comment)}
-                    >
-                      Delete
-                    </button>
-                  </>
-                ) : null}
+                  ) : null}
+                  {canManageComment(comment.author_email, author?.email) ? (
+                    <>
+                      <button
+                        type="button"
+                        className="text-ink-500 dark:text-ink-400 font-semibold"
+                        onClick={() => void editComment(comment)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="font-semibold text-red-600 dark:text-red-400"
+                        onClick={() => void deleteComment(comment)}
+                      >
+                        Delete
+                      </button>
+                    </>
+                  ) : null}
+                </div>
               </div>
-            </div>
-          </li>
+            </li>
+            {author && replyToId === comment.id ? (
+              <li className={replyIndentClass(depth + 1)}>
+                <ReplyForm
+                  authorName={comment.author_name}
+                  saving={saving}
+                  onCancel={() => setReplyToId(null)}
+                  onSubmit={async (text) => {
+                    const posted = await postComment({
+                      body: text,
+                      agentStageId: comment.agent_stage_id,
+                      parentCommentId: comment.id,
+                    })
+                    if (posted) setReplyToId(null)
+                    return posted
+                  }}
+                />
+              </li>
+            ) : null}
+          </Fragment>
         ))}
         {comments.length === 0 ? (
           <li className="text-ink-400 px-1 text-sm">No comments yet.</li>
         ) : null}
       </ul>
     </section>
+  )
+}
+
+function ReplyForm({
+  authorName,
+  saving,
+  onCancel,
+  onSubmit,
+}: {
+  authorName: string
+  saving: boolean
+  onCancel: () => void
+  onSubmit: (body: string) => Promise<boolean>
+}) {
+  const [body, setBody] = useState('')
+
+  async function submit(e: FormEvent) {
+    e.preventDefault()
+    const posted = await onSubmit(body)
+    if (posted) setBody('')
+  }
+
+  return (
+    <form
+      onSubmit={(e) => void submit(e)}
+      className="border-ink-200/70 border-l-brand-300 dark:border-ink-800 dark:border-l-brand-500/50 dark:bg-ink-900 space-y-2 rounded-2xl border border-l-4 bg-white px-4 py-3 shadow-sm"
+    >
+      <textarea
+        autoFocus
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') onCancel()
+        }}
+        rows={2}
+        placeholder={`Reply to ${authorName}…`}
+        className="border-ink-200 focus:border-brand-500 focus:ring-brand-100 dark:border-ink-700 dark:text-ink-100 dark:focus:ring-brand-500/20 w-full resize-y rounded-xl border px-3 py-2 text-sm outline-none focus:ring-4"
+      />
+      <div className="flex flex-wrap items-center gap-3 text-xs">
+        <button
+          type="submit"
+          disabled={saving || !body.trim()}
+          className="bg-ink-900 hover:bg-ink-800 dark:bg-brand-600 dark:hover:bg-brand-500 rounded-full px-3 py-1.5 font-semibold text-white transition disabled:opacity-40"
+        >
+          {saving ? 'Posting…' : 'Post reply'}
+        </button>
+        <button
+          type="button"
+          className="text-ink-500 dark:text-ink-400 font-semibold"
+          onClick={onCancel}
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
   )
 }
