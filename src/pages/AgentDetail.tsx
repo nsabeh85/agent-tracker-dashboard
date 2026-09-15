@@ -938,6 +938,7 @@ function CommentThread({
 }) {
   const [body, setBody] = useState('')
   const [stageId, setStageId] = useState('')
+  const [replyTo, setReplyTo] = useState<Comment | null>(null)
   const [saving, setSaving] = useState(false)
 
   async function submit(e: FormEvent) {
@@ -950,17 +951,44 @@ function CommentThread({
       author_email: author.email,
       author_name: author.display_name,
       body: body.trim(),
+      parent_comment_id: replyTo?.id ?? null,
     })
     setSaving(false)
     if (error) window.alert(error.message)
     else {
       setBody('')
       setStageId('')
+      setReplyTo(null)
       await onSaved()
     }
   }
 
+  async function editComment(comment: Comment) {
+    const body = window.prompt('Edit comment', comment.body)?.trim()
+    if (!body || body === comment.body) return
+    const { error } = await supabase.from('comments').update({ body }).eq('id', comment.id)
+    if (error) window.alert(error.message)
+    else await onSaved()
+  }
+
+  async function deleteComment(comment: Comment) {
+    if (!window.confirm('Delete this comment? Replies will remain.')) return
+    const { error } = await supabase.from('comments').delete().eq('id', comment.id)
+    if (error) window.alert(error.message)
+    else await onSaved()
+  }
+
+  async function copyComment(comment: Comment) {
+    try {
+      await navigator.clipboard.writeText(comment.body)
+    } catch {
+      window.alert('Could not copy the comment.')
+    }
+  }
+
   const stageName = (id: string | null) => rows.find((r) => r.id === id)?.stage.name
+  const commentAuthor = (id: string | null) =>
+    comments.find((comment) => comment.id === id)?.author_name
 
   return (
     <section className="space-y-3">
@@ -977,9 +1005,25 @@ function CommentThread({
           value={body}
           onChange={(e) => setBody(e.target.value)}
           rows={3}
-          placeholder="Post an update for everyone watching this agent…"
+          placeholder={
+            replyTo
+              ? `Reply to ${replyTo.author_name}…`
+              : 'Post an update for everyone watching this agent…'
+          }
           className="border-ink-200 focus:border-brand-500 focus:ring-brand-100 dark:border-ink-700 dark:text-ink-100 dark:focus:ring-brand-500/20 w-full resize-y rounded-xl border px-3 py-2.5 text-sm outline-none focus:ring-4"
         />
+        {replyTo ? (
+          <p className="text-ink-500 dark:text-ink-400 flex items-center gap-2 text-xs">
+            Replying to {replyTo.author_name}
+            <button
+              type="button"
+              className="font-semibold underline"
+              onClick={() => setReplyTo(null)}
+            >
+              Cancel
+            </button>
+          </p>
+        ) : null}
         <div className="flex flex-wrap items-center gap-2">
           <select
             value={stageId}
@@ -1010,7 +1054,10 @@ function CommentThread({
         {comments.map((comment) => (
           <li
             key={comment.id}
-            className="border-ink-200/70 dark:border-ink-800 dark:bg-ink-900 flex gap-3 rounded-2xl border bg-white px-4 py-3 shadow-sm"
+            className={[
+              'border-ink-200/70 dark:border-ink-800 dark:bg-ink-900 flex gap-3 rounded-2xl border bg-white px-4 py-3 shadow-sm',
+              comment.parent_comment_id ? 'ml-6 md:ml-10' : '',
+            ].join(' ')}
           >
             <span className="bg-brand-100 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300 mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold">
               {initials(comment.author_name)}
@@ -1023,6 +1070,11 @@ function CommentThread({
                 <span className="text-ink-400 text-xs">
                   {formatDateTime(comment.created_at)}
                 </span>
+                {comment.parent_comment_id ? (
+                  <span className="text-ink-400 text-xs">
+                    replied to {commentAuthor(comment.parent_comment_id) ?? 'a comment'}
+                  </span>
+                ) : null}
                 {comment.agent_stage_id ? (
                   <span className="bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300 rounded-full px-2 py-0.5 text-xs font-semibold">
                     {stageName(comment.agent_stage_id)}
@@ -1032,6 +1084,42 @@ function CommentThread({
               <p className="text-ink-700 dark:text-ink-300 mt-1.5 text-sm leading-relaxed whitespace-pre-wrap">
                 {comment.body}
               </p>
+              <div className="mt-2 flex flex-wrap gap-3 text-xs">
+                <button
+                  type="button"
+                  className="text-ink-500 dark:text-ink-400 font-semibold"
+                  onClick={() => void copyComment(comment)}
+                >
+                  Copy
+                </button>
+                {author ? (
+                  <button
+                    type="button"
+                    className="text-brand-700 dark:text-brand-300 font-semibold"
+                    onClick={() => setReplyTo(comment)}
+                  >
+                    Reply
+                  </button>
+                ) : null}
+                {author?.email.toLowerCase() === comment.author_email.toLowerCase() ? (
+                  <>
+                    <button
+                      type="button"
+                      className="text-ink-500 dark:text-ink-400 font-semibold"
+                      onClick={() => void editComment(comment)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="font-semibold text-red-600 dark:text-red-400"
+                      onClick={() => void deleteComment(comment)}
+                    >
+                      Delete
+                    </button>
+                  </>
+                ) : null}
+              </div>
             </div>
           </li>
         ))}

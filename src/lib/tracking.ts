@@ -71,6 +71,7 @@ export type PublicComment = {
   body: string
   created_at: string
   agent_stage_id: string | null
+  parent_comment_id: string | null
 }
 
 export type PublicAgent = {
@@ -189,6 +190,7 @@ export function parsePublicAgent(value: unknown): PublicAgent | null {
             body,
             created_at: createdAt,
             agent_stage_id: asString(comment.agent_stage_id),
+            parent_comment_id: asString(comment.parent_comment_id),
           } satisfies PublicComment,
         ]
       })

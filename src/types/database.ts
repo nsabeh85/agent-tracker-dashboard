@@ -269,6 +269,7 @@ export type Database = {
           body: string
           created_at: string
           id: string
+          parent_comment_id: string | null
         }
         Insert: {
           agent_id: string
@@ -278,6 +279,7 @@ export type Database = {
           body: string
           created_at?: string
           id?: string
+          parent_comment_id?: string | null
         }
         Update: {
           agent_id?: string
@@ -287,6 +289,7 @@ export type Database = {
           body?: string
           created_at?: string
           id?: string
+          parent_comment_id?: string | null
         }
         Relationships: [
           {
@@ -301,6 +304,13 @@ export type Database = {
             columns: ['agent_stage_id']
             isOneToOne: false
             referencedRelation: 'agent_stages'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'comments_parent_comment_id_fkey'
+            columns: ['parent_comment_id']
+            isOneToOne: false
+            referencedRelation: 'comments'
             referencedColumns: ['id']
           },
         ]
