@@ -196,19 +196,15 @@ function PublicAgentView({ agent }: { agent: PublicAgent }) {
           ))}
         </div>
       </Dropdown>
-      <Dropdown
-        title="Comments"
-        summary={
-          agent.comments.length === 0
-            ? 'No comments yet'
-            : `${agent.comments.length} from the tracker team`
-        }
-      >
-        <p className="text-ink-400 mb-3 text-xs">
-          These updates are from the tracker team. This page is view only.
-        </p>
+      <section className="border-ink-200/80 dark:border-ink-800 dark:bg-ink-900 rounded-2xl border bg-white p-4 shadow-sm md:p-5">
+        <div className="mb-3">
+          <h2 className="text-ink-900 dark:text-ink-50 text-sm font-bold">Comments</h2>
+          <p className="text-ink-400 text-xs">
+            Updates from the tracker team. This page is view only.
+          </p>
+        </div>
         <PublicCommentList comments={agent.comments} stages={agent.stages} />
-      </Dropdown>
+      </section>
     </>
   )
 }
@@ -221,6 +217,8 @@ function PublicCommentList({
   stages: PublicStage[]
 }) {
   const stageName = (id: string | null) => stages.find((stage) => stage.id === id)?.name
+  const commentAuthor = (id: string | null) =>
+    comments.find((comment) => comment.id === id)?.author_name
 
   if (comments.length === 0) {
     return <p className="text-ink-400 text-sm">No comments yet.</p>
@@ -231,7 +229,10 @@ function PublicCommentList({
       {comments.map((comment) => (
         <li
           key={comment.id}
-          className="border-ink-200/70 dark:border-ink-800 dark:bg-ink-950/40 flex gap-3 rounded-2xl border bg-white px-4 py-3"
+          className={[
+            'border-ink-200/70 dark:border-ink-800 dark:bg-ink-950/40 flex gap-3 rounded-2xl border bg-white px-4 py-3',
+            comment.parent_comment_id ? 'ml-6 md:ml-10' : '',
+          ].join(' ')}
         >
           <span className="bg-brand-100 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300 mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold">
             {initials(comment.author_name)}
@@ -240,6 +241,11 @@ function PublicCommentList({
             <div className="flex flex-wrap items-baseline gap-2 text-sm">
               <span className="text-ink-900 dark:text-ink-50 font-bold">{comment.author_name}</span>
               <span className="text-ink-400 text-xs">{formatDateTime(comment.created_at)}</span>
+              {comment.parent_comment_id ? (
+                <span className="text-ink-400 text-xs">
+                  replied to {commentAuthor(comment.parent_comment_id) ?? 'a comment'}
+                </span>
+              ) : null}
               {comment.agent_stage_id ? (
                 <span className="bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300 rounded-full px-2 py-0.5 text-xs font-semibold">
                   {stageName(comment.agent_stage_id)}

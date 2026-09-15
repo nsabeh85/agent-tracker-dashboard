@@ -91,6 +91,7 @@ describe('parsePublicAgent', () => {
           body: 'Waiting on UAT.',
           created_at: '2026-09-10T12:00:00Z',
           agent_stage_id: 'as-4',
+          parent_comment_id: null,
         },
       ],
     })
@@ -101,6 +102,7 @@ describe('parsePublicAgent', () => {
         body: 'Waiting on UAT.',
         created_at: '2026-09-10T12:00:00Z',
         agent_stage_id: 'as-4',
+        parent_comment_id: null,
       },
     ])
   })

@@ -209,6 +209,7 @@ function toPublicAgent(
       body: comment.body,
       created_at: comment.created_at,
       agent_stage_id: comment.agent_stage_id,
+      parent_comment_id: comment.parent_comment_id,
     })),
   }
 }
