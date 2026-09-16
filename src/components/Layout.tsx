@@ -1,6 +1,7 @@
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { ThemeToggle } from './ThemeToggle'
 import { useAuth } from '../lib/auth'
+import { containerWidthClass } from '../lib/layoutWidth'
 import { initials } from '../lib/schedule'
 import { isDemoMode, supabase } from '../lib/supabase'
 
@@ -18,7 +19,9 @@ function navLinkClass({ isActive }: { isActive: boolean }): string {
 
 export function Layout() {
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const { admin, configured, isDlrUser, session } = useAuth()
+  const width = containerWidthClass(pathname)
 
   async function signOut() {
     await supabase.auth.signOut()
@@ -28,7 +31,7 @@ export function Layout() {
   return (
     <div className="min-h-svh">
       <header className="border-ink-200/70 dark:border-ink-800 dark:bg-ink-950/70 sticky top-0 z-30 border-b bg-white/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
+        <div className={`mx-auto flex ${width} items-center justify-between gap-4 px-4 py-3`}>
           <Link to="/" className="group flex min-w-0 items-center gap-3">
             <span className="from-brand-500 to-brand-700 shadow-brand-600/30 flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br shadow-lg transition-transform group-hover:scale-105">
               <svg viewBox="0 0 24 24" className="h-5 w-5 text-white" aria-hidden>
@@ -114,11 +117,11 @@ export function Layout() {
         </div>
       ) : null}
 
-      <main className="mx-auto max-w-6xl px-4 py-8">
+      <main className={`mx-auto ${width} px-4 py-8`}>
         <Outlet />
       </main>
 
-      <footer className="text-ink-400 dark:text-ink-500 mx-auto max-w-6xl px-4 pb-10 text-xs">
+      <footer className={`text-ink-400 dark:text-ink-500 mx-auto ${width} px-4 pb-10 text-xs`}>
         Digital Realty employees can view this tracker. Only authorized administrators can edit.
       </footer>
     </div>
