@@ -21,7 +21,7 @@ export function SavingsBreakdown({
   const rows = liveAgentsWithSavings(agents, stages)
 
   return (
-    <section className="border-ink-200/80 dark:border-ink-800 dark:bg-ink-900 space-y-5 rounded-3xl border bg-white p-5 shadow-sm md:p-6">
+    <section className="@container border-ink-200/80 dark:border-ink-800 dark:bg-ink-900 space-y-5 rounded-3xl border bg-white p-5 shadow-sm md:p-6">
       <div>
         <h3 className="text-ink-900 dark:text-ink-50 text-sm font-bold tracking-wide uppercase">
           Estimated savings
@@ -32,7 +32,7 @@ export function SavingsBreakdown({
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 @md:grid-cols-2">
         <p className="text-ink-900 dark:text-ink-50 text-3xl font-bold tracking-tight">
           {formatUsd(overall)}
           <span className="text-ink-400 ml-2 text-sm font-semibold tracking-wide uppercase">
@@ -47,7 +47,7 @@ export function SavingsBreakdown({
         </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6 @2xl:grid-cols-2">
         <div>
           <h4 className="text-ink-400 mb-2 text-[10px] font-bold tracking-[0.12em] uppercase">
             By department

@@ -104,12 +104,15 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <SummaryStrip
-        agents={agents}
-        stages={stages}
-        activeMetric={summaryMetric}
-        onMetricChange={selectSummaryMetric}
-      />
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] xl:items-start">
+        <SummaryStrip
+          agents={agents}
+          stages={stages}
+          activeMetric={summaryMetric}
+          onMetricChange={selectSummaryMetric}
+        />
+        <SavingsBreakdown agents={agents} stages={stages} />
+      </div>
 
       <div className="border-ink-200/70 dark:border-ink-800 dark:bg-ink-900/50 grid grid-cols-2 gap-3 rounded-2xl border bg-white/70 p-3 backdrop-blur-sm sm:grid-cols-3 md:flex md:flex-wrap md:items-end md:p-4">
         <Select label="Stage" value={stageId} onChange={setStageId}>
@@ -161,8 +164,6 @@ export function DashboardPage() {
           {visible.length} of {agents.length} shown
         </p>
       </div>
-
-      <SavingsBreakdown agents={agents} stages={stages} />
 
       {error ? (
         <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">

@@ -72,7 +72,7 @@ export function SummaryStrip({ agents, stages, activeMetric, onMetricChange }: P
   const thisMonth = agents.filter((a) => createdThisMonth(a.created_at)).length
 
   return (
-    <section className="from-brand-700 via-brand-600 to-brand-800 shadow-brand-900/20 dark:from-brand-900 dark:via-brand-800 dark:to-ink-900 dark:ring-brand-500/20 relative overflow-hidden rounded-3xl bg-gradient-to-br p-6 shadow-xl md:p-8 dark:shadow-black/40 dark:ring-1">
+    <section className="@container from-brand-700 via-brand-600 to-brand-800 shadow-brand-900/20 dark:from-brand-900 dark:via-brand-800 dark:to-ink-900 dark:ring-brand-500/20 relative overflow-hidden rounded-3xl bg-gradient-to-br p-6 shadow-xl md:p-8 dark:shadow-black/40 dark:ring-1">
       <div className="pointer-events-none absolute -top-24 -right-16 h-64 w-64 rounded-full bg-white/10 blur-2xl" />
       <div className="pointer-events-none absolute -bottom-28 -left-10 h-64 w-64 rounded-full bg-violet-400/20 blur-3xl" />
 
@@ -84,7 +84,7 @@ export function SummaryStrip({ agents, stages, activeMetric, onMetricChange }: P
           Every Copilot Studio request, from intake to live.
         </h2>
 
-        <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-5">
+        <div className="mt-6 grid grid-cols-2 gap-3 @2xl:grid-cols-5">
           <Tile
             label="Pending approval"
             value={pending}
@@ -163,7 +163,7 @@ export function SummaryStrip({ agents, stages, activeMetric, onMetricChange }: P
           />
         </div>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <div className="mt-5 grid gap-3 @md:grid-cols-2">
           <p className="rounded-2xl bg-white/10 px-4 py-3 ring-1 ring-white/15">
             <span className="block text-[10px] font-bold tracking-[0.16em] text-white/60 uppercase">
               Estimated annual savings
