@@ -47,19 +47,25 @@ function Tile({
       aria-pressed={active}
       onClick={onClick}
       className={[
-        'rounded-2xl p-4 text-left backdrop-blur-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white',
+        'flex items-center gap-3 rounded-2xl px-4 py-3 text-left backdrop-blur-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white',
         active
           ? 'bg-white/25 ring-2 ring-white shadow-lg'
           : 'bg-white/10 ring-1 ring-white/15 hover:bg-white/15',
       ].join(' ')}
     >
       <span
-        className={`mb-3 inline-flex h-9 w-9 items-center justify-center rounded-xl ${styles.badge}`}
+        className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${styles.badge}`}
       >
         {icon}
       </span>
-      <p className={`text-3xl leading-none font-bold tracking-tight ${styles.value}`}>{value}</p>
-      <p className="mt-1.5 text-xs font-semibold tracking-wide text-white/70 uppercase">{label}</p>
+      <span className="min-w-0">
+        <span className={`block text-2xl leading-none font-bold tracking-tight ${styles.value}`}>
+          {value}
+        </span>
+        <span className="mt-1 block text-[10px] leading-tight font-semibold tracking-wide text-white/70 uppercase">
+          {label}
+        </span>
+      </span>
     </button>
   )
 }
@@ -84,7 +90,7 @@ export function SummaryStrip({ agents, stages, activeMetric, onMetricChange }: P
           Every Copilot Studio request, from intake to live.
         </h2>
 
-        <div className="mt-6 grid grid-cols-2 gap-3 @md:grid-cols-3 @xl:grid-cols-5">
+        <div className="mt-6 grid grid-cols-1 gap-3 @sm:grid-cols-2 @xl:grid-cols-3 @3xl:grid-cols-5">
           <Tile
             label="Pending approval"
             value={pending}
