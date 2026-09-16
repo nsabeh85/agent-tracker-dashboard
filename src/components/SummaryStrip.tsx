@@ -84,7 +84,7 @@ export function SummaryStrip({ agents, stages, activeMetric, onMetricChange }: P
           Every Copilot Studio request, from intake to live.
         </h2>
 
-        <div className="mt-6 grid grid-cols-2 gap-3 @2xl:grid-cols-5">
+        <div className="mt-6 grid grid-cols-2 gap-3 @md:grid-cols-3 @xl:grid-cols-5">
           <Tile
             label="Pending approval"
             value={pending}
