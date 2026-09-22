@@ -9,9 +9,7 @@
 > `src/lib/jiraApprovedImport.ts`, the `not_approved` guard in
 > `supabase/migrations/20260922000001_import_approved_jira_request.sql`, and this doc.
 
-When a **PCT / AI Request** ticket moves to status **Approved**, Jira should notify the tracker. The tracker creates one `pending_approval` row if it has not already seen that issue. There is no LLM step: the description is the truncated intake text.
-
-Ownership, target go-live, savings, and Copilot Studio URL stay empty or `Unassigned` until someone edits the record in the dashboard.
+When a **PCT / AI Request** ticket moves to status **Approved**, Jira should notify the tracker. The tracker creates one `pending_approval` row if it has not already seen that issue. Later webhooks for the same `PCT-n` **refresh Jira-owned fields** (title, requestor, department, description, priority). Tracker-owned fields never change from Jira: owners, go-live, dashboard status, stages, savings, Copilot Studio URL. There is no LLM step and no write-back to Jira.
 
 ## What gets created
 
@@ -25,11 +23,11 @@ Ownership, target go-live, savings, and Copilot Studio URL stay empty or `Unassi
 | `https://digitalrealty-cdo.atlassian.net/browse/PCT-n` | `source_url` |
 | — | `assigned_to` = `Unassigned`, `target_go_live` = null, `status` = `pending_approval` |
 
-Rejected: any status other than **Approved**, any project other than **PCT**, any issue type other than **AI Request**, duplicate `source_url` / `PCT-n`.
+Create is refused unless the ticket is **Approved** (unknown keys return `skipped`). Updates are allowed on a row that already exists even if Jira has moved on from Approved. Rejected entirely: any project other than **PCT**, any issue type other than **AI Request**.
 
 ## Deploy (server-side only)
 
-1. Apply `supabase/migrations/20260922000001_import_approved_jira_request.sql`.
+1. Apply `supabase/migrations/20260922000001_import_approved_jira_request.sql` and `supabase/migrations/20260922000002_sync_existing_jira_request.sql`.
 2. Create a long random secret (16+ characters). Store it only in the Edge Function secret `JIRA_WEBHOOK_SECRET`. Do **not** put it in the Vite app or any `VITE_` variable.
 3. Deploy with JWT verification off (Jira cannot send a Supabase user token):
 
@@ -42,11 +40,11 @@ The function URL looks like `https://<project-ref>.supabase.co/functions/v1/impo
 
 ## Jira Automation
 
-Project: **PCT**. Rule:
+Project: **PCT**. Use two rules that share the same web request:
 
-1. Trigger: **Issue transitioned** to **Approved**.
-2. Condition: issue type is **AI Request**.
-3. Action: **Send web request**
+1. **Create:** Issue transitioned to **Approved**, issue type **AI Request**.
+2. **Refresh:** Issue updated, issue type **AI Request** (the endpoint skips tickets that are not yet on the tracker).
+3. Action for both: **Send web request**
    - URL: the Edge Function URL above
    - Method: POST
    - Headers: `Content-Type: application/json` and `X-Jira-Webhook-Secret: <same secret>`
@@ -80,7 +78,7 @@ npm test
 npm run lint
 ```
 
-A duplicate notification for the same `PCT-n` returns `created: false` and the existing `agent_id`.
+A later notification for the same `PCT-n` returns `updated: true` and refreshes Jira-owned fields. An unapproved ticket that is not on the tracker returns `skipped: true`.
 
 ## Rollback
 

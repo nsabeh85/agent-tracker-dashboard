@@ -61,14 +61,18 @@ describe('mapJiraWebhookPayload', () => {
     expect(result.value.description).not.toContain('cagar@digitalrealty.com')
   })
 
-  it('rejects anything other than Approved AI Requests in PCT', () => {
-    const newStatus = structuredClone(approvedAiRequest)
-    newStatus.issue.fields.status.name = 'New'
-    expect(mapJiraWebhookPayload(newStatus)).toEqual({
-      ok: false,
-      reason: 'not_approved',
-    })
+  it('maps later Jira edits so an existing tracker row can be refreshed', () => {
+    const edited = structuredClone(approvedAiRequest)
+    edited.issue.fields.status.name = 'In Progress'
+    edited.issue.fields.summary = 'CKA v2'
+    const result = mapJiraWebhookPayload(edited)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.value.status).toBe('In Progress')
+    expect(result.value.title).toBe('CKA v2')
+  })
 
+  it('rejects non-PCT and non-AI Request payloads', () => {
     const enhancement = structuredClone(approvedAiRequest)
     enhancement.issue.fields.issuetype.name = 'Enhancement'
     expect(mapJiraWebhookPayload(enhancement)).toEqual({

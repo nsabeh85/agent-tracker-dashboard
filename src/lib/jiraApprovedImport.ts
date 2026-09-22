@@ -9,12 +9,15 @@ export const WEBHOOK_SECRET_MIN_LENGTH = 16
 export type AgentPriority = 'low' | 'medium' | 'high'
 
 export type JiraImportRejectReason =
-  | 'not_approved'
   | 'wrong_project'
   | 'wrong_issue_type'
   | 'invalid_key'
   | 'invalid_source_url'
   | 'missing_title'
+
+export function isApprovedStatus(status: string): boolean {
+  return status.trim().toLowerCase() === JIRA_APPROVED_STATUS.toLowerCase()
+}
 
 export type MappedJiraImport = {
   issueKey: string
@@ -176,10 +179,6 @@ export function mapJiraWebhookPayload(payload: unknown): MapJiraImportResult {
   }
 
   const status = namedField(fields.status)
-  if (status.toLowerCase() !== JIRA_APPROVED_STATUS.toLowerCase()) {
-    return { ok: false, reason: 'not_approved' }
-  }
-
   const title = String(fields.summary ?? '').trim()
   if (!title) {
     return { ok: false, reason: 'missing_title' }

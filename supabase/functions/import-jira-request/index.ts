@@ -74,10 +74,20 @@ Deno.serve(async (req) => {
     return json(500, { error: 'import_failed' })
   }
 
-  const result = data as { agent_id?: string; created?: boolean; issue_key?: string }
+  const result = data as {
+    agent_id?: string | null
+    created?: boolean
+    updated?: boolean
+    skipped?: boolean
+    issue_key?: string
+    reason?: string
+  }
   return json(200, {
     agent_id: result.agent_id,
-    created: result.created,
+    created: result.created ?? false,
+    updated: result.updated ?? false,
+    skipped: result.skipped ?? false,
     issue_key: result.issue_key ?? value.issueKey,
+    reason: result.reason,
   })
 })
