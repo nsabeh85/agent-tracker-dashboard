@@ -478,6 +478,21 @@ export type Database = {
         }
         Returns: string
       }
+      import_approved_jira_request: {
+        Args: {
+          p_description: string
+          p_issue_key: string
+          p_issue_type: string
+          p_priority: AgentPriority
+          p_project_key: string
+          p_requester_department: string
+          p_requester_name: string
+          p_source_url: string
+          p_status: string
+          p_title: string
+        }
+        Returns: Json
+      }
       set_agent_owners: {
         Args: {
           p_agent_id: string
