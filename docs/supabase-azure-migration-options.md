@@ -2,15 +2,27 @@
 
 **Jira:** [AIBU-119](https://digitalrealty-cdo.atlassian.net/browse/AIBU-119) evaluate options, [AIBU-121](https://digitalrealty-cdo.atlassian.net/browse/AIBU-121) document findings  
 **Prepared:** September 24, 2026  
-**Status:** Formal options assessment — no migration has been started
+**Status:** Formal options assessment — direction set, no migration has been started
+
+## Decision of record
+
+Supabase is an **interim** platform for this tracker. It is acceptable to keep running on it
+today, but it is not the accepted end state, and the tracker will move to Azure. This was
+stated by the project owner (Lauren Lawhon) on September 24, 2026 following a discussion with
+Tony Aguilar. **Option B below is therefore the target direction, not an open question.**
+
+Still unassigned: the Azure platform owner, the migration engineer(s) Tony named, the target
+subscription and region, and the cost approval. Nothing in this document should be read as a
+schedule or a cost estimate until those are filled in.
 
 ## Executive summary
 
 The tracker frontend is already deployed through Azure Static Web Apps. Moving the remaining
 Supabase services is not a hosting toggle: it replaces authentication, Postgres access
-controls, RPCs, realtime subscriptions, and the Jira Edge Function. The evidence available
-supports staying hybrid while Entra sign-in is evaluated. It does not support committing to
-or pricing a migration without Nabih, the Azure platform owner, Security, and Finance.
+controls, RPCs, realtime subscriptions, and the Jira Edge Function. Given the decision above,
+the question is no longer *whether* to move but *in what order and under whose ownership*.
+The sequencing this evidence supports is Entra sign-in first, then the data and backend move,
+with the validation gates in this document cleared before cutover.
 
 ## Scope, method, and evidence
 
@@ -37,17 +49,16 @@ The frontend is already Azure. The remaining question is whether **data, auth, r
 
 ## Options
 
-### Option A — Stay hybrid (recommended until Nabih says otherwise)
+### Option A — Stay hybrid (interim state only)
 
 Keep Azure SWA for the site. Keep Supabase for Postgres, RLS, Realtime, Auth (until Entra), and the Jira Edge Function.
 
 - Least disruption; matches what is in production now.
 - Jira webhook and all tracker RPCs keep working.
-- Remaining work is Entra on SWA/Supabase, not a database move.
+- This is the **current** state and the safe place to sit while Option B is staffed and
+  gated. It is explicitly not the end state.
 
-**Move only if** security, procurement, or data-residency policy forbids Supabase for this data.
-
-### Option B — Lift Postgres to Azure Database for PostgreSQL, keep the app as-is
+### Option B — Lift Postgres to Azure Database for PostgreSQL (target)
 
 Dump/restore the schema and data, but **do not point the browser directly at Azure
 Postgres**. Add a least-privilege backend (for example Azure Functions) and Entra
@@ -93,15 +104,20 @@ requirements, nonfunctional requirements, resource SKUs, and assigned engineers.
 - **B (Postgres on Azure):** material backend/security rewrite plus controlled data cutover.
 - **C:** largest rewrite; abandons the current Postgres/RPC design.
 
-## Recommendation
+## Recommended sequencing
 
-1. **Do not migrate the database in this sprint.** The site is already on Azure SWA. The expensive, risky part is Auth + RLS + RPCs + the Jira function, not the static host.
-2. **Do** plan Entra ID for sign-in (README already calls the password flow a stopgap). That addresses “behind the auth wall” for employees without moving Postgres.
-3. **Revisit Option B** only after a written policy reason (residency, vendor, enterprise standard) and a named owner for the cutover.
+1. **Entra ID sign-in first.** The README already calls the password flow a stopgap. Entra can
+   be done against the current stack, removes the weakest control we have, and is required by
+   Option B anyway, so none of the work is thrown away.
+2. **Name the owners before any data moves.** An Azure platform owner for the subscription,
+   resource group, Key Vault, and Postgres instance, plus the engineer(s) doing the cutover.
+3. **Then execute Option B** through the gates below. The expensive, risky part is Auth + RLS +
+   RPCs + the Jira function, not the static host, so budget the effort there.
+4. **Do not cut over mid-sprint on shared infrastructure.** Rehearse in nonproduction first.
 
 ## Validation and cutover gates
 
-Before selecting Option B:
+Before executing Option B:
 
 1. Inventory row counts, database size, extensions, RPCs, triggers, RLS policies, realtime
    subscriptions, public tracking links, and the Jira function.
@@ -124,18 +140,21 @@ Before selecting Option B:
 | Production Azure inventory/cost/network | Not run — access/owners required | No tenant or billing access provided |
 | Migration prototype/performance/restore | Not run — approval required | No migration environment authorized |
 
-## Nabih still needs to decide
+## Open items (not blockers to the direction, blockers to the date)
 
-- Is Supabase acceptable for tracker data going forward, or is Azure Postgres mandatory?
-- Entra rollout timing (can proceed without a database move).
-- Who owns Azure Postgres, Key Vault, and Function apps if Option B is chosen.
+- Named Azure platform owner for the subscription, resource group, Key Vault, and Postgres.
+- Named migration engineer(s). Tony Aguilar has suggested candidates; record them here once
+  confirmed.
+- Target subscription, region, SKU, and who approves the recurring cost.
+- Entra rollout timing (can proceed immediately and independently of the database move).
+- How long Supabase stays live in parallel, and who decommissions it.
 
 ## Findings summary (AIBU-121)
 
 - Azure already hosts the UI.
-- Supabase still hosts identity, data, live updates, and Jira ingest.
-- A full move is a platform rewrite, not a checkbox.
-- Safest next technical step is Entra, not lifting Postgres.
+- Supabase still hosts identity, data, live updates, and Jira ingest, and is interim only.
+- A full move is a platform rewrite, not a checkbox — plan it as one.
+- First technical step is Entra sign-in; it is required either way and is not wasted work.
 
 ## Primary references
 
