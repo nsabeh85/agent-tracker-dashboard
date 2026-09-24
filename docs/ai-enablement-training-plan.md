@@ -3,9 +3,13 @@
 **Jira:** [AIBU-83](https://digitalrealty-cdo.atlassian.net/browse/AIBU-83) Architect AI Solutions for Biz Productivity Training, [AIBU-122](https://digitalrealty-cdo.atlassian.net/browse/AIBU-122) Architecture AI / Microsoft Enablement Tasks  
 **Related epic:** [AIBU-27](https://digitalrealty-cdo.atlassian.net/browse/AIBU-27) Copilot Studio Academy  
 **Prepared:** September 24, 2026  
-**Status:** Plan and task list — sessions not scheduled, tenant access not assumed
+**Status:** Unapproved draft — sessions not scheduled, tenant access not assumed
 
-These two tickets had no description. This document is the proposed scope so they can close as planning work. Running the academy (calendar, attendees, production bots) still needs Nabih and the business owners.
+AIBU-83 and AIBU-122 had no descriptions or acceptance criteria. This document is an
+optional draft only. It does **not** establish that the two tickets share scope, and it does
+not complete either ticket. AIBU-83 is being handled separately as a training program.
+AIBU-122 must remain open until its reporter or Nabih defines the requested Microsoft
+enablement tasks.
 
 ## Audience and outcome
 
@@ -26,7 +30,7 @@ These two tickets had no description. This document is the proposed scope so the
 
 Hands-on in module 2–3 can be a **demo environment** or screenshots if production access is not granted.
 
-## Enablement task backlog (AIBU-122)
+## Candidate enablement task backlog (requires scope approval)
 
 These are the work items behind the plan. Check them off as people and access appear.
 
@@ -46,10 +50,12 @@ These are the work items behind the plan. Check them off as people and access ap
 - Do not treat Teams admin as the usage data owner.
 - Do not build agents in Dataverse for Teams if we need transcripts later.
 
-## What Nabih still approves
+## What Nabih or the reporter must define/approve
 
 - Who the training is for and when it runs.
 - Whether a demo environment is allowed.
 - Whether Architecture AI is the delivery team or Microsoft partners.
+- Whether AIBU-122 is related to AIBU-83 at all.
+- Acceptance criteria and expected evidence for AIBU-122.
 
-Until those three answers exist, this document is the finished planning artifact for 83 and 122.
+Until those answers exist, this document is not a close-out artifact.
