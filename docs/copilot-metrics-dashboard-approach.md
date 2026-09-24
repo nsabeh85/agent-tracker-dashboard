@@ -64,7 +64,7 @@ These are the list to approve or cut. None of them are implemented.
 
 | Metric | How we would compute it | Source | Privacy |
 | --- | --- | --- | --- |
-| Weekly / monthly active users | Distinct hashed user ids, exclude design-mode | Dataverse | Pseudonymous |
+| Weekly / monthly active users | Distinct hashed `from.id` values only after the one-agent proof confirms Teams supplies a stable user ID; otherwise this metric is unavailable | Dataverse | Pseudonymous |
 | Sessions | Reconstructed conversations (merge split transcript rows) | Dataverse | Aggregate |
 | Teams share | Sessions where channel is `msteams` | Dataverse | Aggregate |
 | Outcome rate | Approved “success” outcomes ÷ eligible completed sessions | Dataverse | Aggregate |
@@ -166,6 +166,7 @@ Identity mapping (BotId / environment id → `agents.id`) is part of the one-age
 - Microsoft Learn: [Develop a custom analytics strategy](https://learn.microsoft.com/en-us/microsoft-copilot-studio/guidance/custom-analytics-strategy)
 - Microsoft Learn: [Conversation transcripts from Power Apps](https://learn.microsoft.com/en-us/microsoft-copilot-studio/analytics-transcripts-powerapps)
 - Microsoft Learn: [Downloaded session data](https://learn.microsoft.com/en-us/microsoft-copilot-studio/analytics-transcripts-studio)
+- Microsoft Learn: [Agent-level telemetry with Application Insights](https://learn.microsoft.com/en-us/microsoft-copilot-studio/advanced-bot-framework-composer-capture-telemetry)
 - Microsoft Learn: [Manage Copilot Credits and capacity](https://learn.microsoft.com/en-us/power-platform/admin/manage-copilot-studio-copilot-credits-capacity)
 - Microsoft Learn: [Pay-as-you-go usage and costs](https://learn.microsoft.com/en-us/power-platform/admin/pay-as-you-go-usage-costs)
 - Repository: `docs/usage-and-intake-recommendations.md`
