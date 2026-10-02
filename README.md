@@ -25,7 +25,7 @@ In Supabase **Authentication → Providers → Email**, enable email sign-in. Tu
 email** off for this password stopgap so new accounts can sign in without a confirmation
 message (the built-in mailer is rate-limited and only delivers to project members).
 
-Administrators create sign-ins from the tracker Settings page. Adding an administrator or a viewer creates a password when that email does not already have one. Adding an owner asks for a work email and does the same. Each row can also create or reset a password later. That calls
+Administrators create sign-ins from the tracker Settings page. Adding an administrator creates a password when that email does not already have one; **Viewer access** creates view-only sign-ins for everyone else. Owners are display names on requests, not logins. Each sign-in row can reset its password later. That calls
 the `manage-accounts` Edge Function, which checks `is_admin()` for the caller and then uses the
 service role to create the Auth user with a random temporary password shown once. The same
 section resets passwords and removes accounts. Deploy it with

@@ -71,22 +71,11 @@ export function SettingsPage() {
     const { error: insertError } = await supabase.rpc('create_owner', {
       p_full_name: normalized,
     })
-    if (insertError) {
-      setError(insertError.message)
-      return
+    if (insertError) setError(insertError.message)
+    else {
+      setError(null)
+      await reload()
     }
-    setError(null)
-    await reload()
-    const email = window.prompt(
-      'Work email so this owner can sign in (@digitalrealty.com). Leave blank if they only need to appear as an owner on requests.',
-    )
-    if (!email?.trim()) return
-    const normalizedEmail = email.trim().toLowerCase()
-    if (!isDigitalRealtyEmail(normalizedEmail)) {
-      setError('Sign-in requires an @digitalrealty.com email address. The owner was still added.')
-      return
-    }
-    await signIn.createPasswordIfMissing(normalizedEmail)
   }
 
   async function addDepartment() {
@@ -369,7 +358,7 @@ export function SettingsPage() {
               Owners
             </h3>
             <p className="mt-1 text-xs text-ink-500 dark:text-ink-400">
-              Inactive owners remain on historical requests but disappear from dropdowns.
+              Owners are names shown on requests; they are not sign-ins. Inactive owners remain on historical requests but disappear from dropdowns.
             </p>
           </div>
           <button
@@ -395,25 +384,6 @@ export function SettingsPage() {
                 onClick={() => void renameOwner(owner)}
               >
                 Rename
-              </button>
-              <button
-                type="button"
-                disabled={signIn.busy}
-                className="text-brand-700 dark:text-brand-300 text-xs font-semibold disabled:opacity-40"
-                onClick={() => {
-                  const email = window.prompt(
-                    `Work email for ${owner.full_name} (@digitalrealty.com)`,
-                  )
-                  if (!email?.trim()) return
-                  const normalizedEmail = email.trim().toLowerCase()
-                  if (!isDigitalRealtyEmail(normalizedEmail)) {
-                    setError('Sign-in requires an @digitalrealty.com email address.')
-                    return
-                  }
-                  void signIn.createPasswordIfMissing(normalizedEmail)
-                }}
-              >
-                Create sign-in
               </button>
               <button
                 type="button"

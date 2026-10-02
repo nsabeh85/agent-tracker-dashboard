@@ -30,8 +30,8 @@ export function ViewerAccessSection({
             Viewer access
           </h3>
           <p className="text-ink-500 dark:text-ink-400 mt-1 text-xs">
-            Employees who can sign in and look at the board, without administrator or owner
-            duties. Adding one creates a password if they do not already have a sign-in.
+            New users who should only view the board. They are not administrators and have no
+            owner rights. Adding one creates their sign-in password.
           </p>
         </div>
         <button
