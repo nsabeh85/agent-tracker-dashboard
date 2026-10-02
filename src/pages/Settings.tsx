@@ -344,18 +344,21 @@ export function SettingsPage() {
           Manage owners, departments, administrators, viewer sign-in, and the stage catalog used when a new request is created.
         </p>
       </div>
-      {error || catalogError || signIn.error ? (
-        <p className="text-sm text-red-600 dark:text-red-400">
-          {error ?? catalogError ?? signIn.error}
-        </p>
-      ) : null}
-      {signIn.notice ? (
-        <p className="text-ink-600 dark:text-ink-300 text-sm">{signIn.notice}</p>
+      {error || catalogError ? (
+        <p className="text-sm text-red-600 dark:text-red-400">{error ?? catalogError}</p>
       ) : null}
       {signIn.credential ? (
         <TemporaryPassword
+          kind="password"
           credential={signIn.credential}
           onDismiss={signIn.dismissCredential}
+        />
+      ) : signIn.error || signIn.notice ? (
+        <TemporaryPassword
+          kind="message"
+          tone={signIn.error ? 'error' : 'info'}
+          message={signIn.error ?? signIn.notice ?? ''}
+          onDismiss={signIn.dismissMessage}
         />
       ) : null}
 
