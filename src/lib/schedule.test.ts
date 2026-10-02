@@ -127,6 +127,7 @@ describe('agent schedule flags', () => {
     expect(isInFlight({ status: 'pending_approval', current_stage_id: 's1' }, stages)).toBe(
       false,
     )
+    expect(isInFlight({ status: 'backlog', current_stage_id: 's3' }, stages)).toBe(false)
   })
 
   it('detects requests created this month', () => {

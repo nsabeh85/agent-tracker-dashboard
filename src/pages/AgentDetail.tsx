@@ -753,6 +753,7 @@ function AgentActions({
         >
           <option value="pending_approval">Pending approval</option>
           <option value="active">Active</option>
+          <option value="backlog">Backlog</option>
           <option value="on_hold">On hold</option>
           <option value="cancelled">Cancelled</option>
           <option value="complete" disabled={agent.status !== 'complete'}>

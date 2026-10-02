@@ -7,7 +7,13 @@ export type Json =
   | Json[]
 
 export type AgentPriority = 'low' | 'medium' | 'high'
-export type AgentStatus = 'pending_approval' | 'active' | 'on_hold' | 'cancelled' | 'complete'
+export type AgentStatus =
+  | 'pending_approval'
+  | 'active'
+  | 'on_hold'
+  | 'cancelled'
+  | 'complete'
+  | 'backlog'
 export type ProgressStatus = 'not_started' | 'in_progress' | 'complete' | 'blocked'
 export type SavingsCadence = 'monthly' | 'yearly'
 

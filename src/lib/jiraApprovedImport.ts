@@ -1,4 +1,3 @@
-export const JIRA_APPROVED_STATUS = 'Approved'
 export const JIRA_AI_REQUEST_TYPE = 'AI Request'
 export const JIRA_PROJECT_KEY = 'PCT'
 export const JIRA_BROWSE_ORIGIN = 'https://digitalrealty-cdo.atlassian.net'
@@ -14,10 +13,6 @@ export type JiraImportRejectReason =
   | 'invalid_key'
   | 'invalid_source_url'
   | 'missing_title'
-
-export function isApprovedStatus(status: string): boolean {
-  return status.trim().toLowerCase() === JIRA_APPROVED_STATUS.toLowerCase()
-}
 
 export type MappedJiraImport = {
   issueKey: string

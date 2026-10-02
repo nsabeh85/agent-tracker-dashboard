@@ -256,6 +256,8 @@ export function statusLabel(status: ProgressStatus | Agent['status']): string {
       return 'Active'
     case 'pending_approval':
       return 'Pending approval'
+    case 'backlog':
+      return 'Backlog'
     case 'on_hold':
       return 'On hold'
     case 'cancelled':

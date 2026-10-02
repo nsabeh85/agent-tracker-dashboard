@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compareAgents, matchesDashboardMetric } from './dashboard'
+import { compareAgents, isShownOnDashboard, matchesDashboardMetric } from './dashboard'
 import type { AgentPriority, AgentStatus, AgentWithStages, Stage } from '../types/database'
 
 const stages: Stage[] = [
@@ -113,5 +113,26 @@ describe('dashboard summary filters', () => {
         today,
       ),
     ).toBe(true)
+    expect(
+      matchesDashboardMetric(
+        agent({ id: 'parked', status: 'backlog', createdAt: '2026-09-03T12:00:00Z' }),
+        stages,
+        'this_month',
+        today,
+      ),
+    ).toBe(false)
+  })
+})
+
+describe('dashboard backlog', () => {
+  it('keeps every status except backlog on the default board', () => {
+    expect(isShownOnDashboard('pending_approval', 'board')).toBe(true)
+    expect(isShownOnDashboard('active', 'board')).toBe(true)
+    expect(isShownOnDashboard('backlog', 'board')).toBe(false)
+  })
+
+  it('shows backlog only when that filter is selected', () => {
+    expect(isShownOnDashboard('backlog', 'backlog')).toBe(true)
+    expect(isShownOnDashboard('active', 'backlog')).toBe(false)
   })
 })

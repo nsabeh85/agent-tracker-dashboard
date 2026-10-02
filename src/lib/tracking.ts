@@ -65,6 +65,7 @@ const STATUSES = new Set<AgentStatus>([
   'on_hold',
   'cancelled',
   'complete',
+  'backlog',
 ])
 const PRIORITIES = new Set<AgentPriority>(['low', 'medium', 'high'])
 const PROGRESS = new Set<ProgressStatus>(['not_started', 'in_progress', 'complete', 'blocked'])

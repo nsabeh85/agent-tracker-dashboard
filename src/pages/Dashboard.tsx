@@ -7,9 +7,11 @@ import { ScheduleMarker } from '../components/ScheduleMarker'
 import { useAgents, useCatalog, useRealtimeTick } from '../hooks/useTracker'
 import {
   compareAgents,
+  isShownOnDashboard,
   matchesDashboardMetric,
   type DashboardMetric,
   type DashboardSort,
+  type StatusFilter,
 } from '../lib/dashboard'
 import {
   dueLabel,
@@ -24,7 +26,6 @@ import { copilotStudioLabel } from '../lib/copilotStudioLink'
 import { formatUsd, liveRealizedSavings, savingsLabel } from '../lib/savings'
 import type { AgentPriority, AgentWithStages, Stage } from '../types/database'
 
-type StatusFilter = 'all' | 'pending_approval' | 'active'
 
 const PRIORITY_STYLE: Record<AgentPriority, string> = {
   high: 'bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-500/15 dark:text-rose-300 dark:ring-rose-500/30',
@@ -69,17 +70,21 @@ export function DashboardPage() {
   const [stageId, setStageId] = useState('')
   const [owner, setOwner] = useState('')
   const [department, setDepartment] = useState('')
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('board')
   const [summaryMetric, setSummaryMetric] = useState<DashboardMetric | null>(null)
   const [sort, setSort] = useState<DashboardSort>('priority')
 
   const departments = departmentCatalog.filter((department) => department.active)
+  const boardAgents = useMemo(
+    () => agents.filter((agent) => agent.status !== 'backlog'),
+    [agents],
+  )
 
   const visible = useMemo(() => {
     return agents
       .filter((agent) => {
         if (summaryMetric && !matchesDashboardMetric(agent, stages, summaryMetric)) return false
-        if (statusFilter !== 'all' && agent.status !== statusFilter) return false
+        if (!isShownOnDashboard(agent.status, statusFilter)) return false
         if (stageId && agent.current_stage_id !== stageId) return false
         if (
           owner &&
@@ -99,13 +104,13 @@ export function DashboardPage() {
     setStageId('')
     setOwner('')
     setDepartment('')
-    setStatusFilter('all')
+    setStatusFilter('board')
   }
 
   return (
     <div className="space-y-6">
       <SummaryStrip
-        agents={agents}
+        agents={boardAgents}
         stages={stages}
         activeMetric={summaryMetric}
         onMetricChange={selectSummaryMetric}
@@ -144,9 +149,10 @@ export function DashboardPage() {
             setSummaryMetric(null)
           }}
         >
-          <option value="all">All statuses</option>
+          <option value="board">On the board</option>
           <option value="pending_approval">Pending approval</option>
           <option value="active">Active only</option>
+          <option value="backlog">Backlog</option>
         </Select>
         <Select
           label="Sort"
@@ -162,7 +168,7 @@ export function DashboardPage() {
         </p>
       </div>
 
-      <SavingsBreakdown agents={agents} stages={stages} />
+      <SavingsBreakdown agents={boardAgents} stages={stages} />
 
       {error ? (
         <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
