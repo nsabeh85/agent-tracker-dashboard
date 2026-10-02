@@ -7,7 +7,13 @@ export type Json =
   | Json[]
 
 export type AgentPriority = 'low' | 'medium' | 'high'
-export type AgentStatus = 'pending_approval' | 'active' | 'on_hold' | 'cancelled' | 'complete'
+export type AgentStatus =
+  | 'pending_approval'
+  | 'active'
+  | 'on_hold'
+  | 'cancelled'
+  | 'complete'
+  | 'backlog'
 export type ProgressStatus = 'not_started' | 'in_progress' | 'complete' | 'blocked'
 export type SavingsCadence = 'monthly' | 'yearly'
 
@@ -477,6 +483,21 @@ export type Database = {
           p_title: string
         }
         Returns: string
+      }
+      import_approved_jira_request: {
+        Args: {
+          p_description: string
+          p_issue_key: string
+          p_issue_type: string
+          p_priority: AgentPriority
+          p_project_key: string
+          p_requester_department: string
+          p_requester_name: string
+          p_source_url: string
+          p_status: string
+          p_title: string
+        }
+        Returns: Json
       }
       set_agent_owners: {
         Args: {

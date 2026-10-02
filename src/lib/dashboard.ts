@@ -4,10 +4,20 @@ import {
   isInFlight,
   isLiveAgent,
 } from './schedule'
-import type { AgentPriority, AgentWithStages, Stage } from '../types/database'
+import type { AgentPriority, AgentStatus, AgentWithStages, Stage } from '../types/database'
 
 export type DashboardMetric = 'pending' | 'in_flight' | 'live' | 'behind' | 'this_month'
 export type DashboardSort = 'target' | 'priority' | 'updated'
+export type StatusFilter = 'board' | 'pending_approval' | 'active' | 'backlog'
+
+/** Backlog is reviewed-and-parked. The default board hides it. */
+export function isShownOnDashboard(
+  status: AgentStatus,
+  filter: StatusFilter,
+): boolean {
+  if (filter === 'board') return status !== 'backlog'
+  return status === filter
+}
 
 const PRIORITY_RANK: Record<AgentPriority, number> = { high: 0, medium: 1, low: 2 }
 
@@ -32,6 +42,7 @@ export function matchesDashboardMetric(
   metric: DashboardMetric,
   today: Date = new Date(),
 ): boolean {
+  if (agent.status === 'backlog') return false
   switch (metric) {
     case 'pending':
       return agent.status === 'pending_approval'

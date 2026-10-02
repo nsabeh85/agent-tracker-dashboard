@@ -1,0 +1,4 @@
+# JWT is disabled for this function because Jira cannot send a Supabase user
+# token. Authentication is the shared JIRA_WEBHOOK_SECRET header instead.
+[functions.import-jira-request]
+verify_jwt = false

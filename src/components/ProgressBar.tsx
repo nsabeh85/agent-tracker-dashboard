@@ -28,7 +28,8 @@ export function ProgressBar({
   const stalled =
     agentStatus === 'on_hold' ||
     agentStatus === 'cancelled' ||
-    agentStatus === 'pending_approval'
+    agentStatus === 'pending_approval' ||
+    agentStatus === 'backlog'
 
   const large = size === 'lg'
   const nodeSize = large ? 'h-11 w-11' : 'h-7 w-7'
