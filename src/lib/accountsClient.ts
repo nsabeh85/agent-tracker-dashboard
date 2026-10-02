@@ -57,6 +57,20 @@ export function createAccount(email: string): Promise<AccountCredential> {
   return callAccounts<AccountCredential>({ action: 'create', email })
 }
 
+/** Creates a sign-in when one does not exist. An existing account is left unchanged. */
+export async function createAccountIfMissing(
+  email: string,
+): Promise<{ created: true; credential: AccountCredential } | { created: false }> {
+  try {
+    return { created: true, credential: await createAccount(email) }
+  } catch (error) {
+    if ((error as Error).message === accountErrorMessage('already_exists')) {
+      return { created: false }
+    }
+    throw error
+  }
+}
+
 export function resetAccountPassword(email: string): Promise<AccountCredential> {
   return callAccounts<AccountCredential>({ action: 'reset_password', email })
 }
