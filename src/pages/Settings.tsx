@@ -1,5 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { TemporaryPassword } from '../components/TemporaryPassword'
+import { ViewerAccessSection } from '../components/ViewerAccessSection'
+import { useSignInAccounts } from '../hooks/useSignInAccounts'
 import { useCatalog, useRealtimeTick } from '../hooks/useTracker'
 import { isDigitalRealtyEmail, useAuth } from '../lib/auth'
 import { summedDurationDays } from '../lib/schedule'
@@ -15,6 +18,7 @@ export function SettingsPage() {
   const { stages, substeps, owners, departments, error: catalogError, reload } = useCatalog(tick)
   const { admin, admins, reloadAdmins } = useAuth()
   const [error, setError] = useState<string | null>(null)
+  const signIn = useSignInAccounts()
 
   async function addAdmin() {
     const email = window.prompt('Admin @digitalrealty.com email')
@@ -33,11 +37,13 @@ export function SettingsPage() {
       email: normalizedEmail,
       display_name: displayName.trim().replace(/\s+/g, ' '),
     })
-    if (adminError) setError(adminError.message)
-    else {
-      setError(null)
-      await reloadAdmins()
+    if (adminError) {
+      setError(adminError.message)
+      return
     }
+    setError(null)
+    await reloadAdmins()
+    await signIn.createPasswordIfMissing(normalizedEmail)
   }
 
   async function removeAdmin(email: string) {
@@ -65,11 +71,22 @@ export function SettingsPage() {
     const { error: insertError } = await supabase.rpc('create_owner', {
       p_full_name: normalized,
     })
-    if (insertError) setError(insertError.message)
-    else {
-      setError(null)
-      await reload()
+    if (insertError) {
+      setError(insertError.message)
+      return
     }
+    setError(null)
+    await reload()
+    const email = window.prompt(
+      'Work email so this owner can sign in (@digitalrealty.com). Leave blank if they only need to appear as an owner on requests.',
+    )
+    if (!email?.trim()) return
+    const normalizedEmail = email.trim().toLowerCase()
+    if (!isDigitalRealtyEmail(normalizedEmail)) {
+      setError('Sign-in requires an @digitalrealty.com email address. The owner was still added.')
+      return
+    }
+    await signIn.createPasswordIfMissing(normalizedEmail)
   }
 
   async function addDepartment() {
@@ -324,11 +341,22 @@ export function SettingsPage() {
           Settings
         </h2>
         <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">
-          Manage owners, departments, administrators, and the stage catalog used when a new request is created.
+          Manage owners, departments, administrators, viewer sign-in, and the stage catalog used when a new request is created.
         </p>
       </div>
-      {error || catalogError ? (
-        <p className="text-sm text-red-600 dark:text-red-400">{error ?? catalogError}</p>
+      {error || catalogError || signIn.error ? (
+        <p className="text-sm text-red-600 dark:text-red-400">
+          {error ?? catalogError ?? signIn.error}
+        </p>
+      ) : null}
+      {signIn.notice ? (
+        <p className="text-ink-600 dark:text-ink-300 text-sm">{signIn.notice}</p>
+      ) : null}
+      {signIn.credential ? (
+        <TemporaryPassword
+          credential={signIn.credential}
+          onDismiss={signIn.dismissCredential}
+        />
       ) : null}
 
       <section className="space-y-4">
@@ -364,6 +392,25 @@ export function SettingsPage() {
                 onClick={() => void renameOwner(owner)}
               >
                 Rename
+              </button>
+              <button
+                type="button"
+                disabled={signIn.busy}
+                className="text-brand-700 dark:text-brand-300 text-xs font-semibold disabled:opacity-40"
+                onClick={() => {
+                  const email = window.prompt(
+                    `Work email for ${owner.full_name} (@digitalrealty.com)`,
+                  )
+                  if (!email?.trim()) return
+                  const normalizedEmail = email.trim().toLowerCase()
+                  if (!isDigitalRealtyEmail(normalizedEmail)) {
+                    setError('Sign-in requires an @digitalrealty.com email address.')
+                    return
+                  }
+                  void signIn.createPasswordIfMissing(normalizedEmail)
+                }}
+              >
+                Create sign-in
               </button>
               <button
                 type="button"
@@ -438,7 +485,8 @@ export function SettingsPage() {
               Administrators
             </h3>
             <p className="text-ink-500 dark:text-ink-400 mt-1 text-xs">
-              Administrators can edit all tracker data and manage this list.
+              Administrators can edit the tracker. Adding one creates a sign-in password when
+              that email does not already have an account.
             </p>
           </div>
           <button
@@ -458,6 +506,25 @@ export function SettingsPage() {
                 </span>
                 <span className="text-ink-400 block truncate text-xs">{entry.email}</span>
               </span>
+              {signIn.emails.has(entry.email.toLowerCase()) ? (
+                <button
+                  type="button"
+                  disabled={signIn.busy}
+                  onClick={() => signIn.resetPassword(entry.email)}
+                  className="text-ink-500 dark:text-ink-400 text-xs disabled:opacity-40"
+                >
+                  Reset password
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={signIn.busy || signIn.loading}
+                  onClick={() => void signIn.createPasswordIfMissing(entry.email)}
+                  className="text-brand-700 dark:text-brand-300 text-xs font-semibold disabled:opacity-40"
+                >
+                  Create password
+                </button>
+              )}
               <button
                 type="button"
                 disabled={entry.email.toLowerCase() === admin?.email.toLowerCase()}
@@ -470,6 +537,24 @@ export function SettingsPage() {
           ))}
         </ul>
       </section>
+
+      <ViewerAccessSection
+        accounts={signIn.accounts}
+        adminEmails={new Set(admins.map((entry) => entry.email.toLowerCase()))}
+        busy={signIn.busy}
+        onAdd={() => {
+          const email = window.prompt('Viewer work email (@digitalrealty.com)')
+          if (!email?.trim()) return
+          const normalizedEmail = email.trim().toLowerCase()
+          if (!isDigitalRealtyEmail(normalizedEmail)) {
+            setError('Viewers must use an @digitalrealty.com email address.')
+            return
+          }
+          void signIn.createPasswordIfMissing(normalizedEmail)
+        }}
+        onReset={(account) => signIn.resetPassword(account.email)}
+        onRemove={(account) => signIn.removeSignIn(account.email)}
+      />
 
       <section className="space-y-4">
         <div className="flex items-center justify-between">

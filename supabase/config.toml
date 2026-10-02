@@ -2,3 +2,7 @@
 # token. Authentication is the shared JIRA_WEBHOOK_SECRET header instead.
 [functions.import-jira-request]
 verify_jwt = false
+
+# Callers must be signed-in tracker users; the function then checks is_admin().
+[functions.manage-accounts]
+verify_jwt = true

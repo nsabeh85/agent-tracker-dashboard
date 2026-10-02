@@ -25,14 +25,19 @@ In Supabase **Authentication → Providers → Email**, enable email sign-in. Tu
 email** off for this password stopgap so new accounts can sign in without a confirmation
 message (the built-in mailer is rate-limited and only delivers to project members).
 
-Create each user in **Authentication → Users → Add user → Create user** (not **Send
-invitation**). Invitation only emails a magic link and never asks for a password. Use their
-`@digitalrealty.com` address, a password you share out of band, and **Auto Confirm User**. If
-you already invited someone, delete that Auth user if they never signed in, then create them
-again with a password.
+Administrators create sign-ins from the tracker Settings page. Adding an administrator or a viewer creates a password when that email does not already have one. Adding an owner asks for a work email and does the same. Each row can also create or reset a password later. That calls
+the `manage-accounts` Edge Function, which checks `is_admin()` for the caller and then uses the
+service role to create the Auth user with a random temporary password shown once. The same
+section resets passwords and removes accounts. Deploy it with
+`supabase functions deploy manage-accounts` (JWT verification stays on; no extra secrets).
+
+The Supabase dashboard still works as a fallback: **Authentication → Users → Add user →
+Create user** (not **Send invitation**, which only emails a magic link) with their
+`@digitalrealty.com` address and **Auto Confirm User**.
 
 Do not put passwords in git, SQL, or GitHub secrets. There is no self-serve sign-up; only
-accounts you create can sign in. Share links (`/track/:token`) still work without an account.
+accounts an administrator creates can sign in. Share links (`/track/:token`) still work without
+an account.
 
 In **Authentication → URL Configuration**, set the production site URL (needed later for
 Microsoft sign-in). Email/password does not use a redirect.
