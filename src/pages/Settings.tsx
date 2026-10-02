@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { AccountsSection } from '../components/AccountsSection'
 import { useCatalog, useRealtimeTick } from '../hooks/useTracker'
 import { isDigitalRealtyEmail, useAuth } from '../lib/auth'
 import { summedDurationDays } from '../lib/schedule'
@@ -324,7 +325,7 @@ export function SettingsPage() {
           Settings
         </h2>
         <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">
-          Manage owners, departments, administrators, and the stage catalog used when a new request is created.
+          Manage owners, departments, administrators, sign-in accounts, and the stage catalog used when a new request is created.
         </p>
       </div>
       {error || catalogError ? (
@@ -470,6 +471,8 @@ export function SettingsPage() {
           ))}
         </ul>
       </section>
+
+      <AccountsSection />
 
       <section className="space-y-4">
         <div className="flex items-center justify-between">
