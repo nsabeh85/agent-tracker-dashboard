@@ -1,20 +1,22 @@
 import { useState } from 'react'
 import type { AccountCredential } from '../lib/accountsClient'
 
-/** Shown once. Cleared when dismissed; the password is not written anywhere else. */
-export function TemporaryPassword({
-  credential,
-  onDismiss,
-}: {
-  credential: AccountCredential
-  onDismiss: () => void
-}) {
+type Props =
+  | { kind: 'password'; credential: AccountCredential; onDismiss: () => void }
+  | { kind: 'message'; tone: 'error' | 'info'; message: string; onDismiss: () => void }
+
+/**
+ * Centered pop-up so the result of a sign-in action is visible wherever the
+ * page is scrolled. A password is shown once and cleared on dismiss.
+ */
+export function TemporaryPassword(props: Props) {
   const [copied, setCopied] = useState(false)
   const [copyError, setCopyError] = useState<string | null>(null)
 
   async function copyPassword() {
+    if (props.kind !== 'password') return
     try {
-      await navigator.clipboard.writeText(credential.temporary_password)
+      await navigator.clipboard.writeText(props.credential.temporary_password)
       setCopied(true)
       setCopyError(null)
     } catch {
@@ -24,36 +26,66 @@ export function TemporaryPassword({
 
   return (
     <div
-      role="status"
-      className="space-y-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm dark:border-amber-500/40 dark:bg-amber-500/10"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      role="dialog"
+      aria-modal="true"
     >
-      <p className="font-semibold text-amber-900 dark:text-amber-200">
-        Password for {credential.email}
-      </p>
-      <p className="text-amber-900/80 dark:text-amber-100/80">
-        This works for sign-in right now, and it is shown once. Hand it over directly, not by
-        email or in a Jira comment, and not in the same message as the tracker link.
-      </p>
-      <div className="flex flex-wrap items-center gap-3">
-        <code className="text-ink-900 dark:text-ink-50 rounded-lg bg-white px-3 py-2 font-mono text-base tracking-wider select-all dark:bg-ink-900">
-          {credential.temporary_password}
-        </code>
-        <button
-          type="button"
-          onClick={() => void copyPassword()}
-          className="rounded-full border border-amber-400 bg-white px-3 py-1.5 text-xs font-semibold text-amber-900 dark:bg-ink-900 dark:text-amber-200"
-        >
-          {copied ? 'Copied' : 'Copy'}
-        </button>
-        <button
-          type="button"
-          onClick={onDismiss}
-          className="text-xs font-semibold text-amber-900/70 dark:text-amber-200/70"
-        >
-          Dismiss
-        </button>
+      <div className="dark:bg-ink-900 w-full max-w-md space-y-4 rounded-2xl bg-white p-6 shadow-2xl">
+        {props.kind === 'password' ? (
+          <>
+            <p className="text-ink-900 dark:text-ink-50 text-base font-semibold">
+              Password for {props.credential.email}
+            </p>
+            <p className="text-ink-600 dark:text-ink-300 text-sm">
+              This works for sign-in now and is shown once. Copy it before closing. Give it to
+              them directly, not by email or Jira, and not in the same message as the link.
+            </p>
+            <code className="text-ink-900 dark:text-ink-50 bg-ink-100 dark:bg-ink-800 block rounded-lg px-3 py-3 text-center font-mono text-lg tracking-wider select-all">
+              {props.credential.temporary_password}
+            </code>
+            {copyError ? (
+              <p className="text-xs text-red-600 dark:text-red-400">{copyError}</p>
+            ) : null}
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => void copyPassword()}
+                className="bg-brand-600 rounded-full px-4 py-2 text-sm font-semibold text-white"
+              >
+                {copied ? 'Copied' : 'Copy password'}
+              </button>
+              <button
+                type="button"
+                onClick={props.onDismiss}
+                className="text-ink-500 dark:text-ink-400 text-sm font-semibold"
+              >
+                Done
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p
+              className={
+                props.tone === 'error'
+                  ? 'text-sm text-red-600 dark:text-red-400'
+                  : 'text-ink-700 dark:text-ink-200 text-sm'
+              }
+            >
+              {props.message}
+            </p>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={props.onDismiss}
+                className="text-ink-500 dark:text-ink-400 text-sm font-semibold"
+              >
+                Close
+              </button>
+            </div>
+          </>
+        )}
       </div>
-      {copyError ? <p className="text-xs text-red-600 dark:text-red-400">{copyError}</p> : null}
     </div>
   )
 }

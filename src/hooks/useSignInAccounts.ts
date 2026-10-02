@@ -95,6 +95,10 @@ export function useSignInAccounts() {
     error,
     setError,
     notice,
+    dismissMessage: () => {
+      setNotice(null)
+      setError(null)
+    },
     credential,
     dismissCredential: () => setCredential(null),
     emails,
