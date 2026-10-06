@@ -32,14 +32,7 @@ export default function App() {
                 </RequireAdmin>
               }
             />
-            <Route
-              path="/agents/:id"
-              element={
-                <RequireViewer>
-                  <AgentDetailPage />
-                </RequireViewer>
-              }
-            />
+            <Route path="/agents/:id" element={<AgentDetailPage />} />
             <Route
               path="/settings"
               element={

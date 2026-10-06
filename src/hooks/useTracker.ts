@@ -263,6 +263,43 @@ export function usePublicAgent(token: string | undefined) {
   return { agent, loading, error, reload }
 }
 
+const AGENT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** Read-only agent page for someone with the link and no account. */
+export function usePublicAgentById(agentId: string | undefined) {
+  const validId = agentId && AGENT_ID.test(agentId) ? agentId : undefined
+  const [agent, setAgent] = useState<PublicAgent | null>(null)
+  const [loading, setLoading] = useState(Boolean(validId))
+  const [error, setError] = useState<string | null>(null)
+
+  const reload = useCallback(async () => {
+    if (!validId) {
+      setAgent(null)
+      setLoading(false)
+      return
+    }
+
+    const { data, error: rpcError } = await supabase.rpc('get_public_agent_by_id', {
+      p_agent_id: validId,
+    })
+    if (rpcError) {
+      setError(rpcError.message)
+      setAgent(null)
+      setLoading(false)
+      return
+    }
+    setError(null)
+    setAgent(parsePublicAgent(data))
+    setLoading(false)
+  }, [validId])
+
+  useEffect(() => {
+    void reload()
+  }, [reload])
+
+  return { agent, loading, error }
+}
+
 export function orderedAgentStages<T extends AgentStage>(
   agentStages: T[],
   stages: Stage[],

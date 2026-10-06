@@ -5,6 +5,7 @@ import { ScheduleMarker } from '../components/ScheduleMarker'
 import { CheckIcon } from '../components/StageIcon'
 import { OwnerMultiSelect } from '../components/OwnerMultiSelect'
 import { CopyTrackingLink } from '../components/CopyTrackingLink'
+import { PublicAgentByIdPage } from './PublicTrack'
 import { DateInput } from '../components/DateInput'
 import {
   orderedAgentStages,
@@ -64,7 +65,7 @@ const STATUS_PILL: Record<ProgressStatus, string> = {
 
 export function AgentDetailPage() {
   const { id } = useParams()
-  const { admin } = useAuth()
+  const { admin, isDlrUser, loading: authLoading, session } = useAuth()
   const tick = useRealtimeTick()
   const { stages, owners: ownerCatalog, departments } = useCatalog(tick)
   const owners = ownerCatalog.filter((owner) => owner.active)
@@ -83,6 +84,13 @@ export function AgentDetailPage() {
     setOpenStageId(currentRow?.id ?? null)
     setStageToggleReady(true)
   }, [agent, stageToggleReady])
+
+  if (authLoading) {
+    return <div className="skeleton h-72 rounded-3xl" />
+  }
+  if (!session || !isDlrUser) {
+    return <PublicAgentByIdPage agentId={id} />
+  }
 
   if (loading) return <div className="skeleton h-72 rounded-3xl" />
   if (error) return <p className="text-sm text-red-600">{error}</p>

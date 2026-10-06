@@ -90,7 +90,7 @@ export function parsePublicAgent(value: unknown): PublicAgent | null {
   const owners = asString(row.owners)
   const status = asString(row.status)
   const priority = asString(row.priority)
-  if (!title || !requesterName || !department || !currentStageId || owners === null) return null
+  if (!title || !requesterName || !department) return null
   if (!status || !STATUSES.has(status as AgentStatus)) return null
   if (!priority || !PRIORITIES.has(priority as AgentPriority)) return null
 
@@ -173,8 +173,8 @@ export function parsePublicAgent(value: unknown): PublicAgent | null {
     requester_department: department,
     priority: priority as AgentPriority,
     status: status as AgentStatus,
-    owners,
-    current_stage_id: currentStageId,
+    owners: owners ?? 'Unassigned',
+    current_stage_id: currentStageId ?? '',
     target_go_live: asString(row.target_go_live),
     created_at: asString(row.created_at) ?? '',
     stages,

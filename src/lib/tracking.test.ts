@@ -89,6 +89,27 @@ describe('parsePublicAgent', () => {
     ])
   })
 
+  it('still shows the request when the owner field is empty', () => {
+    const parsed = parsePublicAgent({
+      title: 'Invoice bot',
+      description: '',
+      source_url: null,
+      requester_name: 'Sam Lee',
+      requester_department: 'Finance',
+      priority: 'medium',
+      status: 'pending_approval',
+      owners: null,
+      current_stage_id: null,
+      target_go_live: null,
+      created_at: '2026-09-01T00:00:00Z',
+      stages: [],
+      substeps: [],
+    })
+    expect(parsed?.title).toBe('Invoice bot')
+    expect(parsed?.owners).toBe('Unassigned')
+    expect(parsed?.current_stage_id).toBe('')
+  })
+
   it('rejects incomplete payloads', () => {
     expect(parsePublicAgent({ title: 'Missing the rest' })).toBeNull()
     expect(parsePublicAgent(null)).toBeNull()

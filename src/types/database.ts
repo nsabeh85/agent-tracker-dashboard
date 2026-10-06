@@ -433,6 +433,12 @@ export type Database = {
         }
         Returns: Json
       }
+      get_public_agent_by_id: {
+        Args: {
+          p_agent_id: string
+        }
+        Returns: Json
+      }
       complete_stage_and_advance: {
         Args: {
           p_agent_id: string
