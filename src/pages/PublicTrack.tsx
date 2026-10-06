@@ -4,7 +4,7 @@ import { ProgressBar } from '../components/ProgressBar'
 import { ScheduleMarker } from '../components/ScheduleMarker'
 import { CheckIcon } from '../components/StageIcon'
 import { ThemeToggle } from '../components/ThemeToggle'
-import { usePublicAgent } from '../hooks/useTracker'
+import { usePublicAgent, usePublicAgentById } from '../hooks/useTracker'
 import { dueLabel, formatDate, formatDateTime, initials, isLiveAgent, statusLabel } from '../lib/schedule'
 import { replyIndentClass, threadComments } from '../lib/comments'
 import { descriptionWithoutSource, sourceLabel } from '../lib/sourceLink'
@@ -71,6 +71,28 @@ export function PublicTrackPage() {
       <footer className="text-ink-400 dark:text-ink-500 mx-auto max-w-3xl px-4 pb-10 text-center text-xs">
         This page shows only this request. Bookmark the link to check back for updates.
       </footer>
+    </div>
+  )
+}
+
+/** Same view-only page, opened from the agent address (/agents/:id) with no login. */
+export function PublicAgentByIdPage({ agentId }: { agentId: string | undefined }) {
+  const { agent, loading, error } = usePublicAgentById(agentId)
+
+  return (
+    <div className="mx-auto max-w-3xl space-y-4">
+      <p className="text-ink-400 text-center text-xs">View only. No sign-in required.</p>
+      {!agentId ? (
+        <MissingLink />
+      ) : loading ? (
+        <div className="skeleton h-72 rounded-3xl" />
+      ) : error ? (
+        <p className="text-sm text-red-600">{error}</p>
+      ) : !agent ? (
+        <MissingLink />
+      ) : (
+        <PublicAgentView agent={agent} />
+      )}
     </div>
   )
 }
