@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { emailFromPrincipal } from './azureClient'
+import { emailFromPrincipal, restUrl } from './azureClient'
+
+describe('restUrl', () => {
+  it('turns a same-origin API path into a full URL', () => {
+    expect(restUrl('/api', 'https://tracker.example.net')).toBe(
+      'https://tracker.example.net/api/rest/v1',
+    )
+    expect(restUrl('https://api.example.net', 'https://tracker.example.net')).toBe(
+      'https://api.example.net/rest/v1',
+    )
+  })
+})
 
 describe('emailFromPrincipal', () => {
   it('prefers userDetails and falls back to a Digital Realty claim', () => {
