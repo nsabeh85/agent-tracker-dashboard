@@ -23,6 +23,11 @@ export function emailFromPrincipal(principal: {
   return ''
 }
 
+/** postgrest-js builds requests with `new URL`, which rejects a bare `/api` path. */
+export function restUrl(root: string, origin = 'http://localhost') {
+  return new URL(`${root}/rest/v1`, origin).toString()
+}
+
 type AzureUser = { id: string; email: string }
 type AzureSession = { access_token: string; expires_at: number; user: AzureUser }
 type Listener = (event: string, session: AzureSession | null) => void
@@ -57,7 +62,7 @@ export function createAzureClient(apiUrl: string) {
   // Do not send Authorization. App Service Easy Auth treats that header as an
   // Entra token and the board request never finishes. The API reads the
   // Static Web Apps principal and adds the data token on the private hop.
-  const rest = new PostgrestClient(`${root}/rest/v1`)
+  const rest = new PostgrestClient(restUrl(root, globalThis.location?.origin))
 
   return {
     from: rest.from.bind(rest),
