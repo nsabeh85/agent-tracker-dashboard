@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { isDigitalRealtyEmail, safeReturnPath, useAuth } from '../lib/auth'
-import { supabase } from '../lib/supabase'
+import { isAzureConfigured, supabase } from '../lib/supabase'
 
 export function LoginPage() {
   const navigate = useNavigate()
@@ -38,7 +38,16 @@ export function LoginPage() {
     navigate(safeReturnPath((location.state as { from?: unknown } | null)?.from), { replace: true })
   }
 
+  function signInWithMicrosoft() {
+    const next = safeReturnPath((location.state as { from?: unknown } | null)?.from)
+    window.location.assign(`/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent(next)}`)
+  }
+
   async function signOut() {
+    if (isAzureConfigured) {
+      window.location.assign('/.auth/logout?post_logout_redirect_uri=/login')
+      return
+    }
     const { error: signOutError } = await supabase.auth.signOut()
     if (signOutError) {
       setError(signOutError.message)
@@ -87,6 +96,20 @@ export function LoginPage() {
             </button>
           </div>
           {error ? <p className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}
+        </div>
+      ) : isAzureConfigured ? (
+        <div className="border-ink-200 dark:border-ink-800 dark:bg-ink-900 space-y-3 rounded-2xl border bg-white p-5">
+          <button
+            type="button"
+            onClick={signInWithMicrosoft}
+            className="bg-brand-600 rounded-full px-4 py-2 text-sm font-semibold text-white"
+          >
+            Sign in with Microsoft
+          </button>
+          <p className="text-ink-400 text-xs leading-relaxed">
+            Use your Digital Realty account. Administrators are still the people listed in
+            Settings.
+          </p>
         </div>
       ) : (
         <form

@@ -6,7 +6,7 @@ import { useSignInAccounts } from '../hooks/useSignInAccounts'
 import { useCatalog, useRealtimeTick } from '../hooks/useTracker'
 import { isDigitalRealtyEmail, useAuth } from '../lib/auth'
 import { summedDurationDays } from '../lib/schedule'
-import { supabase } from '../lib/supabase'
+import { isAzureConfigured, supabase } from '../lib/supabase'
 import type { Department, Owner, Stage, Substep } from '../types/database'
 
 function isFullName(name: string): boolean {
@@ -479,7 +479,7 @@ export function SettingsPage() {
                 </span>
                 <span className="text-ink-400 block truncate text-xs">{entry.email}</span>
               </span>
-              {signIn.emails.has(entry.email.toLowerCase()) ? (
+              {isAzureConfigured ? null : signIn.emails.has(entry.email.toLowerCase()) ? (
                 <button
                   type="button"
                   disabled={signIn.busy}
@@ -511,6 +511,12 @@ export function SettingsPage() {
         </ul>
       </section>
 
+      {isAzureConfigured ? (
+        <p className="text-ink-500 dark:text-ink-400 text-sm">
+          People sign in with their Digital Realty Microsoft account. Anyone at Digital Realty can
+          view the board. Only the administrators above can edit it.
+        </p>
+      ) : (
       <ViewerAccessSection
         accounts={signIn.accounts}
         adminEmails={new Set(admins.map((entry) => entry.email.toLowerCase()))}
@@ -528,6 +534,7 @@ export function SettingsPage() {
         onReset={(account) => signIn.resetPassword(account.email)}
         onRemove={(account) => signIn.removeSignIn(account.email)}
       />
+      )}
 
       <section className="space-y-4">
         <div className="flex items-center justify-between">

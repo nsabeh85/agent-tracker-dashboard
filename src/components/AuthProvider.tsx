@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { AuthContext, isDigitalRealtyEmail } from '../lib/auth'
-import { isSupabaseConfigured, supabase } from '../lib/supabase'
+import { isAzureConfigured, isSupabaseConfigured, supabase } from '../lib/supabase'
 import type { Admin } from '../types/database'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [admin, setAdmin] = useState<Admin | null>(null)
   const [admins, setAdmins] = useState<Admin[]>([])
-  const [loading, setLoading] = useState(isSupabaseConfigured)
+  const configured = isAzureConfigured || isSupabaseConfigured
+  const [loading, setLoading] = useState(configured)
 
   const loadAccess = useCallback(async (nextSession: Session | null) => {
     const email = nextSession?.user.email
@@ -35,7 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadAccess, session])
 
   useEffect(() => {
-    if (!isSupabaseConfigured) return
+    if (!configured) return
     let mounted = true
 
     void supabase.auth.getSession().then(async ({ data }) => {
@@ -54,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       mounted = false
       subscription.subscription.unsubscribe()
     }
-  }, [loadAccess])
+  }, [configured, loadAccess])
 
   return (
     <AuthContext.Provider
@@ -63,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         admin,
         admins,
         loading,
-        configured: isSupabaseConfigured,
+        configured,
         isDlrUser: isDigitalRealtyEmail(session?.user.email),
         reloadAdmins,
       }}
