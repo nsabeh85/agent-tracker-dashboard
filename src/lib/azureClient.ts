@@ -3,6 +3,25 @@ import { PostgrestClient } from '@supabase/postgrest-js'
 
 const SESSION_KEY = 'agent-tracker-azure-session'
 const TOKEN_TTL_SKEW_MS = 30_000
+const AUTH_TIMEOUT_MS = 12_000
+
+function digitalRealtyEmail(value: unknown) {
+  const email = String(value || '').trim().toLowerCase()
+  return /@digitalrealty\.com$/.test(email) ? email : ''
+}
+
+export function emailFromPrincipal(principal: {
+  userDetails?: string
+  claims?: Array<{ val?: string }>
+} | null | undefined) {
+  const fromDetails = digitalRealtyEmail(principal?.userDetails)
+  if (fromDetails) return fromDetails
+  for (const claim of principal?.claims ?? []) {
+    const email = digitalRealtyEmail(claim?.val)
+    if (email) return email
+  }
+  return ''
+}
 
 type AzureUser = { id: string; email: string }
 type AzureSession = { access_token: string; expires_at: number; user: AzureUser }
@@ -35,14 +54,10 @@ function writeSession(session: AzureSession | null) {
 
 export function createAzureClient(apiUrl: string) {
   const root = apiUrl.replace(/\/$/, '')
-  const rest = new PostgrestClient(`${root}/rest/v1`, {
-    fetch: (input, init) => {
-      const headers = new Headers(init?.headers)
-      const session = readSession()
-      if (session) headers.set('Authorization', `Bearer ${session.access_token}`)
-      return fetch(input, { ...init, headers })
-    },
-  })
+  // Do not send Authorization. App Service Easy Auth treats that header as an
+  // Entra token and the board request never finishes. The API reads the
+  // Static Web Apps principal and adds the data token on the private hop.
+  const rest = new PostgrestClient(`${root}/rest/v1`)
 
   return {
     from: rest.from.bind(rest),
@@ -50,14 +65,24 @@ export function createAzureClient(apiUrl: string) {
     auth: {
       async getSession() {
         try {
-          const me = await fetch('/.auth/me', { credentials: 'same-origin' })
+          const me = await fetch('/.auth/me', {
+            credentials: 'same-origin',
+            signal: AbortSignal.timeout(AUTH_TIMEOUT_MS),
+          })
           if (me.ok) {
-            const body = (await me.json()) as { clientPrincipal?: { userDetails?: string } | null }
-            const email = body.clientPrincipal?.userDetails?.trim().toLowerCase()
-            if (email) {
+            const body = (await me.json()) as {
+              clientPrincipal?: { userDetails?: string; claims?: Array<{ val?: string }> } | null
+            }
+            const email = emailFromPrincipal(body.clientPrincipal)
+            if (!email) {
+              writeSession(null)
+              return { data: { session: null } }
+            }
+            try {
               const exchanged = await fetch(`${root}/auth/session`, {
                 method: 'POST',
                 credentials: 'same-origin',
+                signal: AbortSignal.timeout(AUTH_TIMEOUT_MS),
               })
               if (exchanged.ok) {
                 const tokenBody = (await exchanged.json()) as {
@@ -73,9 +98,17 @@ export function createAzureClient(apiUrl: string) {
                 writeSession(session)
                 return { data: { session } }
               }
-            } else {
-              writeSession(null)
-              return { data: { session: null } }
+            } catch {
+              // The sign-in cookie still identifies this user to the API.
+            }
+            return {
+              data: {
+                session: {
+                  access_token: '',
+                  expires_at: Date.now() + 12 * 60 * 60 * 1000,
+                  user: { id: email, email },
+                },
+              },
             }
           }
         } catch {
@@ -136,15 +169,12 @@ export function createAzureClient(apiUrl: string) {
         if (name !== 'manage-accounts') {
           return { data: null, error: new Error('Unknown account action.') }
         }
-        const session = readSession()
         let response: Response
         try {
           response = await fetch(`${root}/accounts`, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: session ? `Bearer ${session.access_token}` : '',
-            },
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(options?.body ?? {}),
           })
         } catch (error) {
