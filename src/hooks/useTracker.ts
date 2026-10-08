@@ -91,20 +91,26 @@ export function useAgents(tick: number) {
 
   const reload = useCallback(async () => {
     if (isDemoMode) return
-    const { data, error: queryError } = await supabase
-      .from('agents')
-      .select(
-        '*, agent_owners(owner_id, owner:owners(*)), agent_stages(*, agent_stage_owners(owner_id, owner:owners(*)))',
-      )
-      .order('updated_at', { ascending: false })
-    if (queryError) {
-      setError(queryError.message)
+    try {
+      const { data, error: queryError } = await supabase
+        .from('agents')
+        .select(
+          '*, agent_owners(owner_id, owner:owners(*)), agent_stages(*, agent_stage_owners(owner_id, owner:owners(*)))',
+        )
+        .order('updated_at', { ascending: false })
+      if (queryError) {
+        setError(queryError.message)
+        setAgents([])
+      } else {
+        setError(null)
+        setAgents((data ?? []) as AgentWithStages[])
+      }
+    } catch (queryError) {
+      setError(queryError instanceof Error ? queryError.message : 'Could not load agents.')
       setAgents([])
-    } else {
-      setError(null)
-      setAgents((data ?? []) as AgentWithStages[])
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }, [])
 
   useEffect(() => {

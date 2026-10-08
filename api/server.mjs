@@ -3,6 +3,7 @@ import { request as httpRequest } from 'node:http'
 import { spawn } from 'node:child_process'
 import pg from 'pg'
 import { hashPassword, signJwt, verifyJwt } from './authCrypto.mjs'
+import { dataApiAuthorization, userFromPrincipalHeader } from './clientPrincipal.mjs'
 import {
   generateTemporaryPassword,
   parseAccountRequest,
@@ -96,27 +97,9 @@ async function withUser(claims, run) {
   }
 }
 
-function digitalRealtyEmail(value) {
-  const email = String(value || '').trim().toLowerCase()
-  return /@digitalrealty\.com$/.test(email) ? email : ''
-}
-
 function clientPrincipal(req) {
   const raw = req.headers['x-ms-client-principal']
-  if (typeof raw !== 'string' || !raw) return null
-  try {
-    const principal = JSON.parse(Buffer.from(raw, 'base64').toString('utf8'))
-    const claimEmail = Array.isArray(principal.claims)
-      ? principal.claims
-          .map((claim) => digitalRealtyEmail(claim?.val))
-          .find(Boolean)
-      : ''
-    const email = digitalRealtyEmail(principal.userDetails) || claimEmail || ''
-    if (!email) return null
-    return { email, id: String(principal.userId || email) }
-  } catch {
-    return null
-  }
+  return userFromPrincipalHeader(typeof raw === 'string' ? raw : '')
 }
 
 function issueSession(res, req, user) {
@@ -148,7 +131,10 @@ async function sessionFromSso(req, res) {
 }
 
 async function accounts(req, res) {
-  const claims = verifyJwt(bearer(req), process.env.JWT_SECRET || '')
+  const user = clientPrincipal(req)
+  const claims = user
+    ? { role: 'authenticated', email: user.email }
+    : verifyJwt(bearer(req), process.env.JWT_SECRET || '')
   if (!claims || claims.role !== 'authenticated' || typeof claims.email !== 'string') {
     sendJson(res, 401, { error: 'unauthorized' }, corsHeaders(req))
     return
@@ -299,6 +285,12 @@ async function jiraImport(req, res) {
 function proxyRest(req, res) {
   const path = (req.url || '/').replace(/^\/rest\/v1/, '') || '/'
   const headers = { ...req.headers, host: `127.0.0.1:${POSTGREST_PORT}` }
+  // App Service Easy Auth consumes Authorization before this process runs.
+  // The browser must not send it. Attach the Static Web Apps user here, on
+  // the private hop to PostgREST, and drop any caller-supplied bearer token.
+  const authorization = dataApiAuthorization(clientPrincipal(req), process.env.JWT_SECRET || '')
+  if (authorization) headers.authorization = authorization
+  else delete headers.authorization
   const upstream = httpRequest(
     {
       hostname: '127.0.0.1',

@@ -39,12 +39,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!configured) return
     let mounted = true
 
-    void supabase.auth.getSession().then(async ({ data }) => {
-      if (!mounted) return
-      setSession(data.session)
-      await loadAccess(data.session)
-      if (mounted) setLoading(false)
-    })
+    void supabase.auth
+      .getSession()
+      .then(async ({ data }) => {
+        if (!mounted) return
+        setSession(data.session)
+        try {
+          await loadAccess(data.session)
+        } catch {
+          if (!mounted) return
+          setAdmin(null)
+          setAdmins([])
+        } finally {
+          if (mounted) setLoading(false)
+        }
+      })
+      .catch(() => {
+        if (mounted) setLoading(false)
+      })
 
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession)
