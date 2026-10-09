@@ -3,6 +3,12 @@ import { isLiveAgent, parseISODate, startOfDay } from './schedule'
 import type { Agent, AgentStage, Stage } from '../types/database'
 
 export const SAVINGS_CHECKIN_DAYS = 30
+export const SAVINGS_PRIMARY_EMAIL = 'jtaylor@digitalrealty.com'
+export const SAVINGS_SECONDARY_EMAIL = 'asudra@digitalrealty.com'
+
+export function canUpdateLiveSavings(email: string | null | undefined): boolean {
+  return email?.trim().toLowerCase() === SAVINGS_PRIMARY_EMAIL
+}
 
 type CheckInAgent = Pick<Agent, 'status' | 'current_stage_id' | 'target_go_live'> & {
   agent_stages: Array<Pick<AgentStage, 'stage_id' | 'actual_start' | 'actual_end'>>
@@ -37,7 +43,8 @@ export function dueSavingsCheckpoint(
   sentPeriods: number[],
   today: Date = new Date(),
 ): number | null {
-  if (agent.status !== 'active' || !isLiveAgent(agent, stages)) return null
+  if (!isLiveAgent(agent, stages)) return null
+  if (agent.status === 'complete' || agent.status === 'cancelled') return null
   const checkpoint = savingsCheckpoint(
     daysInProduction(liveSinceISO(agent, agent.agent_stages, stages, today), today),
   )

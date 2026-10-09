@@ -21,7 +21,7 @@ export function SavingsCheckIns({
         Cost check-in
       </h2>
       <p className="mt-1 text-sm text-amber-800 dark:text-amber-100/80">
-        Each live agent gets a note every 30 days it stays in production, asking for the cost saved.
+        Every agent on the Live stage gets a note at day 30, 60, 90, and every 30 days after that. Justin Taylor is asked to update the cost saved. Ajay Sudra is copied.
       </p>
       <ul className="mt-3 space-y-2">
         {due.map((item) => (

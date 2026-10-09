@@ -37,6 +37,7 @@ import { canManageComment, replyIndentClass, threadComments } from '../lib/comme
 import { descriptionWithoutSource, isHttpsUrl, sourceLabel } from '../lib/sourceLink'
 import { supabase } from '../lib/supabase'
 import { formatUsd, liveRealizedSavings, parseSavingsAmount, savingsLabel } from '../lib/savings'
+import { canUpdateLiveSavings } from '../lib/savingsCheckIn'
 import type {
   Admin,
   AgentPriority,
@@ -201,7 +202,7 @@ export function AgentDetailPage() {
         />
       </section>
 
-      {isDlrUser && !admin && isLiveAgent(agent, stages) ? (
+      {canUpdateLiveSavings(session?.user.email) && !admin && isLiveAgent(agent, stages) ? (
         <LiveSavingsForm agent={agent} onSaved={reload} />
       ) : null}
 
@@ -589,7 +590,7 @@ function LiveSavingsForm({
     >
       <h3 className="text-ink-800 dark:text-ink-100 text-sm font-semibold">Cost saved</h3>
       <p className="text-ink-500 mt-1 text-sm">
-        Update this each month the agent stays live.
+        Justin Taylor can update this each month the agent stays live.
       </p>
       <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
         <label className="block flex-1">

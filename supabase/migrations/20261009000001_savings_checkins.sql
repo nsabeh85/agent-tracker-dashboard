@@ -1,5 +1,5 @@
 -- One row per 30-day production check-in, so the same note is not sent twice.
--- Digital Realty users can record the cost saved without becoming full editors.
+-- Justin Taylor can record the cost saved on a live agent without full edit access.
 
 CREATE TABLE IF NOT EXISTS public.savings_checkins (
   agent_id uuid NOT NULL REFERENCES public.agents (id) ON DELETE CASCADE,
@@ -39,8 +39,8 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  IF NOT public.is_dlr_user() THEN
-    RAISE EXCEPTION 'Digital Realty access required';
+  IF lower(COALESCE(auth.jwt() ->> 'email', '')) IS DISTINCT FROM 'jtaylor@digitalrealty.com' THEN
+    RAISE EXCEPTION 'Only Justin Taylor can update cost saved';
   END IF;
   IF p_amount IS NOT NULL AND p_amount < 0 THEN
     RAISE EXCEPTION 'Money saved must be 0 or greater';
@@ -53,7 +53,7 @@ BEGIN
     FROM public.agents AS agent
     JOIN public.stages AS current_stage ON current_stage.id = agent.current_stage_id
     WHERE agent.id = p_agent_id
-      AND agent.status = 'active'
+      AND agent.status NOT IN ('complete', 'cancelled')
       AND current_stage.sort_order = (SELECT max(sort_order) FROM public.stages)
   ) THEN
     RAISE EXCEPTION 'Cost saved is updated once an agent is live';

@@ -23,7 +23,7 @@ export async function runDueSavingsCheckIns(pool, today = new Date()) {
            ) AS agent_stages
     FROM public.agents AS agent
     LEFT JOIN public.agent_stages AS stage ON stage.agent_id = agent.id
-    WHERE agent.status = 'active'
+    WHERE agent.status NOT IN ('complete', 'cancelled')
     GROUP BY agent.id
   `)
   const sent = await pool.query('SELECT agent_id, period_days FROM public.savings_checkins')

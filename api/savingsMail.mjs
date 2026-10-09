@@ -1,8 +1,10 @@
+import { SAVINGS_PRIMARY_EMAIL, SAVINGS_SECONDARY_EMAIL } from '../src/lib/savingsCheckIn.ts'
+
 const GRAPH_SCOPE = 'https://graph.microsoft.com/.default'
 
 export function savingsRecipients() {
-  const primary = (process.env.SAVINGS_ALERT_PRIMARY || '').trim().toLowerCase()
-  const secondary = (process.env.SAVINGS_ALERT_SECONDARY || '').trim().toLowerCase()
+  const primary = (process.env.SAVINGS_ALERT_PRIMARY || SAVINGS_PRIMARY_EMAIL).trim().toLowerCase()
+  const secondary = (process.env.SAVINGS_ALERT_SECONDARY || SAVINGS_SECONDARY_EMAIL).trim().toLowerCase()
   return {
     primary,
     secondary: secondary && secondary !== primary ? secondary : '',

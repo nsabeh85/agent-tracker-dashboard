@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  canUpdateLiveSavings,
   daysInProduction,
   dueSavingsCheckpoint,
   savingsCheckInMessage,
@@ -66,8 +67,16 @@ describe('production cost check-ins', () => {
     const today = new Date(2026, 2, 17)
     expect(dueSavingsCheckpoint(agent(), stages, [], today)).toBe(60)
     expect(dueSavingsCheckpoint(agent(), stages, [60], today)).toBeNull()
+    expect(dueSavingsCheckpoint(agent({ status: 'on_hold' }), stages, [], today)).toBe(60)
     expect(dueSavingsCheckpoint(agent({ status: 'complete' }), stages, [], today)).toBeNull()
+    expect(dueSavingsCheckpoint(agent({ status: 'cancelled' }), stages, [], today)).toBeNull()
     expect(dueSavingsCheckpoint(agent({ current_stage_id: 'build' }), stages, [], today)).toBeNull()
+  })
+
+  it('lets only Justin update the cost saved', () => {
+    expect(canUpdateLiveSavings('JTaylor@DigitalRealty.com')).toBe(true)
+    expect(canUpdateLiveSavings('asudra@digitalrealty.com')).toBe(false)
+    expect(canUpdateLiveSavings('llawhon@digitalrealty.com')).toBe(false)
   })
 
   it('asks Justin how the agent is doing and where to update the cost', () => {
