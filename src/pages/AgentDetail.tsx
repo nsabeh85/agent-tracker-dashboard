@@ -37,6 +37,7 @@ import { canManageComment, replyIndentClass, threadComments } from '../lib/comme
 import { descriptionWithoutSource, isHttpsUrl, sourceLabel } from '../lib/sourceLink'
 import { supabase } from '../lib/supabase'
 import { formatUsd, liveRealizedSavings, parseSavingsAmount, savingsLabel } from '../lib/savings'
+import { canUpdateLiveSavings } from '../lib/savingsCheckIn'
 import type {
   Admin,
   AgentPriority,
@@ -200,6 +201,10 @@ export function AgentDetailPage() {
           size="lg"
         />
       </section>
+
+      {canUpdateLiveSavings(session?.user.email) && !admin && isLiveAgent(agent, stages) ? (
+        <LiveSavingsForm agent={agent} onSaved={reload} />
+      ) : null}
 
       {admin ? (
         <>
@@ -540,6 +545,90 @@ function FieldGroup({ label, children }: { label: string; children: ReactNode })
       </span>
       <span className="text-ink-800 dark:text-ink-100 mt-1 block text-sm">{children}</span>
     </div>
+  )
+}
+
+function LiveSavingsForm({
+  agent,
+  onSaved,
+}: {
+  agent: AgentWithStages
+  onSaved: () => Promise<void>
+}) {
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    const savings = parseSavingsAmount(String(form.get('savings_amount') ?? ''))
+    if (savings === 'invalid') {
+      setMessage('Money saved must be a number 0 or greater.')
+      return
+    }
+    const cadence = String(form.get('savings_cadence') ?? 'yearly') === 'monthly' ? 'monthly' : 'yearly'
+    setBusy(true)
+    setMessage(null)
+    const { error } = await supabase.rpc('set_agent_savings', {
+      p_agent_id: agent.id,
+      p_amount: savings,
+      p_cadence: cadence,
+    })
+    setBusy(false)
+    if (error) {
+      setMessage(error.message)
+      return
+    }
+    setMessage('Cost saved updated.')
+    await onSaved()
+  }
+
+  return (
+    <form
+      onSubmit={(event) => void save(event)}
+      className="border-ink-200 dark:border-ink-700 dark:bg-ink-900/40 rounded-3xl border bg-white/70 p-5"
+    >
+      <h3 className="text-ink-800 dark:text-ink-100 text-sm font-semibold">Cost saved</h3>
+      <p className="text-ink-500 mt-1 text-sm">
+        Justin Taylor can update this each month the agent stays live.
+      </p>
+      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
+        <label className="block flex-1">
+          <span className="text-ink-400 text-[10px] font-bold tracking-[0.12em] uppercase">
+            Amount
+          </span>
+          <input
+            type="number"
+            name="savings_amount"
+            min={0}
+            step="0.01"
+            defaultValue={agent.savings_amount ?? ''}
+            className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-100 mt-1 w-full rounded-lg border px-2 py-1.5 outline-none"
+          />
+        </label>
+        <label className="block">
+          <span className="text-ink-400 text-[10px] font-bold tracking-[0.12em] uppercase">
+            Period
+          </span>
+          <select
+            name="savings_cadence"
+            defaultValue={agent.savings_cadence ?? 'yearly'}
+            className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-100 mt-1 w-full rounded-lg border px-2 py-1.5 outline-none"
+          >
+            <option value="yearly">Yearly</option>
+            <option value="monthly">Monthly</option>
+          </select>
+        </label>
+        <button
+          type="submit"
+          disabled={busy}
+          className="bg-brand-600 hover:bg-brand-700 rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+        >
+          {busy ? 'Saving…' : 'Save cost'}
+        </button>
+      </div>
+      {message ? <p className="text-ink-600 dark:text-ink-300 mt-3 text-sm">{message}</p> : null}
+    </form>
   )
 }
 

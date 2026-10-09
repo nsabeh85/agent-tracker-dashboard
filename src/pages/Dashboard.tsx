@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { SavingsBreakdown } from '../components/SavingsBreakdown'
+import { SavingsCheckIns } from '../components/SavingsCheckIns'
 import { SummaryStrip } from '../components/SummaryStrip'
 import { ProgressBar } from '../components/ProgressBar'
 import { ScheduleMarker } from '../components/ScheduleMarker'
@@ -168,6 +169,7 @@ export function DashboardPage() {
         </p>
       </div>
 
+      <SavingsCheckIns agents={boardAgents} stages={stages} />
       <SavingsBreakdown agents={boardAgents} stages={stages} />
 
       {error ? (
