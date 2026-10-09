@@ -1,4 +1,8 @@
-import { SAVINGS_PRIMARY_EMAIL, SAVINGS_SECONDARY_EMAIL } from '../src/lib/savingsCheckIn.ts'
+import {
+  SAVINGS_FROM_EMAIL,
+  SAVINGS_PRIMARY_EMAIL,
+  SAVINGS_SECONDARY_EMAIL,
+} from '../src/lib/savingsCheckIn.ts'
 
 const GRAPH_SCOPE = 'https://graph.microsoft.com/.default'
 
@@ -11,12 +15,16 @@ export function savingsRecipients() {
   }
 }
 
+export function savingsFromAddress() {
+  return (process.env.SAVINGS_MAIL_FROM || SAVINGS_FROM_EMAIL).trim().toLowerCase()
+}
+
 export function mailConfigured() {
   return Boolean(
     process.env.GRAPH_TENANT_ID &&
       process.env.GRAPH_CLIENT_ID &&
       process.env.GRAPH_CLIENT_SECRET &&
-      process.env.SAVINGS_MAIL_FROM,
+      savingsFromAddress(),
   )
 }
 
@@ -47,7 +55,7 @@ export async function sendSavingsEmail({ to, cc, subject, text }) {
     ccRecipients: cc ? [{ emailAddress: { address: cc } }] : [],
   }
   const response = await fetch(
-    `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(process.env.SAVINGS_MAIL_FROM)}/sendMail`,
+    `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(savingsFromAddress())}/sendMail`,
     {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },

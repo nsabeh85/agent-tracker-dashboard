@@ -5,6 +5,7 @@ import type { Agent, AgentStage, Stage } from '../types/database'
 export const SAVINGS_CHECKIN_DAYS = 30
 export const SAVINGS_PRIMARY_EMAIL = 'jtaylor@digitalrealty.com'
 export const SAVINGS_SECONDARY_EMAIL = 'asudra@digitalrealty.com'
+export const SAVINGS_FROM_EMAIL = 'llawhon@digitalrealty.com'
 
 export function canUpdateLiveSavings(email: string | null | undefined): boolean {
   return email?.trim().toLowerCase() === SAVINGS_PRIMARY_EMAIL
