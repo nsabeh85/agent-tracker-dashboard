@@ -13,6 +13,7 @@ import {
   secretsMatch,
   webhookSecretFromHeaders,
 } from '../src/lib/jiraApprovedImport.ts'
+import { runDueSavingsCheckIns } from './savingsCheckIn.mjs'
 
 const PORT = Number(process.env.PORT || 8080)
 const POSTGREST_PORT = Number(process.env.POSTGREST_PORT || 3001)
@@ -402,6 +403,18 @@ async function main() {
   server.listen(PORT, () => {
     console.log(`tracker api listening on ${PORT}`)
   })
+  const checkInDelayMs = 60_000
+  const checkInIntervalMs = 24 * 60 * 60 * 1000
+  setTimeout(() => {
+    void runDueSavingsCheckIns(pool).catch((error) => {
+      console.error(error instanceof Error ? error.message : 'savings check-in failed')
+    })
+    setInterval(() => {
+      void runDueSavingsCheckIns(pool).catch((error) => {
+        console.error(error instanceof Error ? error.message : 'savings check-in failed')
+      })
+    }, checkInIntervalMs)
+  }, checkInDelayMs)
 }
 
 main().catch((error) => {

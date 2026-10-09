@@ -560,6 +560,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      set_agent_savings: {
+        Args: {
+          p_agent_id: string
+          p_amount: number | null
+          p_cadence: SavingsCadence
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       agent_priority: AgentPriority
