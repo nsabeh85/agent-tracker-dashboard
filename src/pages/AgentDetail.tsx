@@ -202,7 +202,10 @@ export function AgentDetailPage() {
         />
       </section>
 
-      {canUpdateLiveSavings(session?.user.email) && !admin && isLiveAgent(agent, stages) ? (
+      {canUpdateLiveSavings(session?.user.email) &&
+      isLiveAgent(agent, stages) &&
+      agent.status !== 'complete' &&
+      agent.status !== 'cancelled' ? (
         <LiveSavingsForm agent={agent} onSaved={reload} />
       ) : null}
 
@@ -590,7 +593,7 @@ function LiveSavingsForm({
     >
       <h3 className="text-ink-800 dark:text-ink-100 text-sm font-semibold">Cost saved</h3>
       <p className="text-ink-500 mt-1 text-sm">
-        Justin Taylor can update this each month the agent stays live.
+        Justin Taylor or Ajay Sudra can update this while the agent stays live.
       </p>
       <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
         <label className="block flex-1">
@@ -751,11 +754,6 @@ function AgentActions({
       window.alert('Copilot Studio link must be a valid HTTPS URL.')
       return
     }
-    const savings = parseSavingsAmount(String(form.get('savings_amount') ?? ''))
-    if (savings === 'invalid') {
-      window.alert('Money saved must be a number 0 or greater.')
-      return
-    }
     setBusy(true)
     const { error: detailError } = await supabase
       .from('agents')
@@ -768,8 +766,6 @@ function AgentActions({
         source_url: sourceUrl || null,
         target_go_live: goLive,
         copilot_studio_url: studioUrl || null,
-        savings_amount: savings,
-        savings_cadence: String(form.get('savings_cadence') ?? 'yearly') === 'monthly' ? 'monthly' : 'yearly',
       })
       .eq('id', agent.id)
     if (detailError) {
@@ -919,27 +915,6 @@ function AgentActions({
               defaultValue={agent.target_go_live ?? ''}
               className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
             />
-          </Field>
-          <Field label="Money saved">
-            <input
-              type="number"
-              name="savings_amount"
-              min={0}
-              step="0.01"
-              defaultValue={agent.savings_amount ?? ''}
-              placeholder="e.g. 12000"
-              className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
-            />
-          </Field>
-          <Field label="Savings period">
-            <select
-              name="savings_cadence"
-              defaultValue={agent.savings_cadence}
-              className="border-ink-200 focus:border-brand-500 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-100 w-full rounded-lg border px-2 py-1.5 outline-none"
-            >
-              <option value="yearly">Yearly</option>
-              <option value="monthly">Monthly</option>
-            </select>
           </Field>
           <div className="sm:col-span-2">
             <Field label="Copilot Studio link">

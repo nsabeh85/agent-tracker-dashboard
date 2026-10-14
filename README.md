@@ -71,12 +71,16 @@ An agent record includes:
 The board annualizes monthly estimates and shows realized savings as months in production
 multiplied by the monthly savings rate.
 
-[PR #40](https://github.com/nsabeh85/agent-tracker-dashboard/pull/40) adds a production savings
-check-in. For every agent on the Live stage, it identifies day 30, 60, 90, 120, and each later
-30-day checkpoint. Justin Taylor is the only non-admin who may update the saved-cost field.
-The email goes to Justin Taylor, copies Ajay Sudra, and appears to come from Lauren Lawhon.
+The dashboard shows a cost reminder for every agent on the Live stage. It appears on the same
+calendar day the agent went live, each month: an October 10 go-live is flagged on November 10,
+December 10, January 10, and so on. A shorter month uses its last day, so January 31 is flagged
+on February 28, or February 29 in a leap year. The reminder reads “has been live for one month,”
+then “two months,” “three months,” “one year,” “one year and one month,” “two years and three
+months,” and so on. Justin Taylor or Ajay Sudra can enter that cost on the agent page. Other
+editors can set an initial estimate when the agent is created, and cannot change it afterward.
 
-That pull request must not be enabled for email until an Entra/Microsoft 365 administrator:
+The email to Justin Taylor, with Ajay Sudra copied, waits until later. Do not enable it until
+an Entra/Microsoft 365 administrator:
 
 1. enables the system-assigned managed identity for `app-agtracker-api`;
 2. grants that identity Microsoft Graph `Mail.Send` application permission with admin consent;
@@ -85,7 +89,9 @@ That pull request must not be enabled for email until an Entra/Microsoft 365 adm
 
 The production implementation should use managed identity, not a client secret. The daily process
 is only a checkpoint scan: on most days it sends nothing. It sends one message only when an agent
-has reached an unsent 30-day checkpoint.
+has reached an unsent monthly anniversary. Apply
+`supabase/migrations/20261014000001_savings_editors.sql` to Azure PostgreSQL. That folder is the
+schema history for Azure; it is not a Supabase database.
 
 ### Public links
 
@@ -103,8 +109,8 @@ Access is enforced in the database as well as in the interface.
 
 - `@digitalrealty.com` Microsoft identities can view the internal board.
 - Emails listed in `public.admins` can create and edit agents and settings.
-- Justin Taylor receives a narrow exception to update savings on agents that are Live; this is
-  part of PR #40 and does not grant broader administrator access.
+- Justin Taylor and Ajay Sudra can update cost saved on agents that are Live. This does not
+  grant broader administrator access.
 - Other domains and anonymous users cannot query tracker tables.
 - Public tracking functions return only the single requested agent.
 - The Jira import function can be run by the API role, not by a signed-in browser user.

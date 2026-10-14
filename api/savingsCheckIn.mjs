@@ -26,11 +26,11 @@ export async function runDueSavingsCheckIns(pool, today = new Date()) {
     WHERE agent.status NOT IN ('complete', 'cancelled')
     GROUP BY agent.id
   `)
-  const sent = await pool.query('SELECT agent_id, period_days FROM public.savings_checkins')
+  const sent = await pool.query('SELECT agent_id, period_months FROM public.savings_checkins')
   const sentByAgent = new Map()
   for (const row of sent.rows) {
     const periods = sentByAgent.get(row.agent_id) ?? []
-    periods.push(row.period_days)
+    periods.push(row.period_months)
     sentByAgent.set(row.agent_id, periods)
   }
 
@@ -63,9 +63,9 @@ export async function runDueSavingsCheckIns(pool, today = new Date()) {
       text: message.text,
     })
     await pool.query(
-      `INSERT INTO public.savings_checkins (agent_id, period_days)
+      `INSERT INTO public.savings_checkins (agent_id, period_months)
        VALUES ($1, $2)
-       ON CONFLICT (agent_id, period_days) DO NOTHING`,
+       ON CONFLICT (agent_id, period_months) DO NOTHING`,
       [item.agent.id, item.period],
     )
     sentCount += 1

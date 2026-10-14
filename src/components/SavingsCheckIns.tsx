@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { dueSavingsCheckpoint } from '../lib/savingsCheckIn'
+import { savingsDashboardAlert, savingsReminderLabel } from '../lib/savingsCheckIn'
 import type { AgentWithStages, Stage } from '../types/database'
 
 export function SavingsCheckIns({
@@ -10,7 +10,7 @@ export function SavingsCheckIns({
   stages: Stage[]
 }) {
   const due = agents.flatMap((agent) => {
-    const period = dueSavingsCheckpoint(agent, stages, [])
+    const period = savingsReminderLabel(agent, stages)
     return period == null ? [] : [{ id: agent.id, title: agent.title, period }]
   })
   if (due.length === 0) return null
@@ -21,17 +21,20 @@ export function SavingsCheckIns({
         Cost check-in
       </h2>
       <p className="mt-1 text-sm text-amber-800 dark:text-amber-100/80">
-        Every agent on the Live stage gets a note at day 30, 60, 90, and every 30 days after that. Justin Taylor is asked to update the cost saved. Ajay Sudra is copied.
+        Justin Taylor or Ajay Sudra can enter the cost saved. The reminder appears each month on the same calendar day the agent went live, from one month through one year and one month, and onward.
       </p>
       <ul className="mt-3 space-y-2">
-        {due.map((item) => (
-          <li key={item.id} className="text-sm text-amber-950 dark:text-amber-50">
-            <Link to={`/agents/${item.id}`} className="font-semibold underline">
-              {item.title}
-            </Link>{' '}
-            has been live {item.period} days. Update the cost saved.
-          </li>
-        ))}
+        {due.map((item) => {
+          const message = savingsDashboardAlert(item.title, item.period)
+          return (
+            <li key={item.id} className="text-sm text-amber-950 dark:text-amber-50">
+              <Link to={`/agents/${item.id}`} className="font-semibold underline">
+                {item.title}
+              </Link>
+              {message.slice(item.title.length)}
+            </li>
+          )
+        })}
       </ul>
     </section>
   )
