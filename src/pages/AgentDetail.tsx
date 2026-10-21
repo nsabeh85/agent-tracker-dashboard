@@ -36,7 +36,13 @@ import { copilotStudioLabel } from '../lib/copilotStudioLink'
 import { canManageComment, replyIndentClass, threadComments } from '../lib/comments'
 import { descriptionWithoutSource, isHttpsUrl, sourceLabel } from '../lib/sourceLink'
 import { supabase } from '../lib/supabase'
-import { formatUsd, liveRealizedSavings, parseSavingsAmount, savingsLabel } from '../lib/savings'
+import {
+  formatUsd,
+  liveRealizedSavings,
+  parseSavingsAmount,
+  savingsLabel,
+  wentLiveISO,
+} from '../lib/savings'
 import { canUpdateLiveSavings } from '../lib/savingsCheckIn'
 import type {
   Admin,
@@ -98,6 +104,7 @@ export function AgentDetailPage() {
   if (!agent) return <p className="text-ink-500 text-sm">Agent not found.</p>
 
   const current = stages.find((s) => s.id === agent.current_stage_id)
+  const wentLive = wentLiveISO(agent, agent.agent_stages, stages)
   const liveSavings = isLiveAgent(agent, stages)
     ? savingsLabel(agent.savings_amount, agent.savings_cadence)
     : null
@@ -187,11 +194,13 @@ export function AgentDetailPage() {
           <p className="text-ink-500 dark:text-ink-400 text-sm">
             Target {formatDate(agent.target_go_live)}
             <span className="text-ink-300 mx-2">·</span>
-            <span
-              className={`font-semibold ${isLiveAgent(agent, stages) ? 'text-emerald-600 dark:text-emerald-400' : ''}`}
-            >
-              {isLiveAgent(agent, stages) ? 'Live now' : dueLabel(agent.target_go_live)}
-            </span>
+            {isLiveAgent(agent, stages) ? (
+              <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                Went live {wentLive ? formatDate(wentLive) : 'not recorded'}
+              </span>
+            ) : (
+              <span className="font-semibold">{dueLabel(agent.target_go_live)}</span>
+            )}
           </p>
         </div>
         <ProgressBar
@@ -372,7 +381,9 @@ function StageCard({
           </span>
           <span className="text-ink-400 block text-xs">
             {substeps.length > 0 ? `${done}/${substeps.length} steps done` : 'No sub-steps'}
-            {row.actual_start ? ` · started ${formatDate(row.actual_start)}` : ''}
+            {row.actual_start
+              ? ` · ${row.stage.name === 'Live' ? 'went live' : 'started'} ${formatDate(row.actual_start)}`
+              : ''}
             {row.agent_stage_owners.length > 0
               ? ` · ${ownerNames(row.agent_stage_owners)}`
               : ''}
@@ -419,7 +430,7 @@ function StageCard({
                 }}
               />
             </Field>
-            <Field label="Actual start">
+            <Field label={row.stage.name === 'Live' ? 'Went live' : 'Actual start'}>
               <DateInput
                 key={row.actual_start ?? 'unset'}
                 disabled={!canEdit}

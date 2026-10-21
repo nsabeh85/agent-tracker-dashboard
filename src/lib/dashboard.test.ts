@@ -39,6 +39,7 @@ function agent({
     public_token: 'a'.repeat(32),
     savings_amount: null,
     savings_cadence: 'yearly',
+    went_live_on: stageId === 'live' ? stageStarted : null,
     copilot_studio_url: null,
     created_at: createdAt,
     updated_at: createdAt,

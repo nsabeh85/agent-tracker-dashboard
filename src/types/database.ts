@@ -217,6 +217,7 @@ export type Database = {
           target_go_live: string | null
           title: string
           updated_at: string
+          went_live_on: string | null
         }
         Insert: {
           assigned_to: string
@@ -236,6 +237,7 @@ export type Database = {
           target_go_live?: string | null
           title: string
           updated_at?: string
+          went_live_on?: string | null
         }
         Update: {
           assigned_to?: string
@@ -255,6 +257,7 @@ export type Database = {
           target_go_live?: string | null
           title?: string
           updated_at?: string
+          went_live_on?: string | null
         }
         Relationships: [
           {

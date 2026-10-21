@@ -59,7 +59,7 @@ An agent record includes:
 
 - title, requester, department, description, priority, and board status;
 - one or more owners and per-stage owners;
-- target go-live date and source request link;
+- target go-live date, the date the agent went live, and source request link;
 - Copilot Studio link;
 - stage and sub-step progress;
 - threaded comments with author-aware edit and delete rules;
@@ -70,6 +70,9 @@ An agent record includes:
 
 The board annualizes monthly estimates and shows realized savings as months in production
 multiplied by the monthly savings rate.
+
+Each live agent has a went-live date. It is the Live stage start, and the board shows it beside
+the target date. A target date is not used when that start was never recorded.
 
 The dashboard shows a cost reminder for every agent on the Live stage. It appears on the same
 calendar day the agent went live, each month: an October 10 go-live is flagged on November 10,
@@ -90,7 +93,8 @@ an Entra/Microsoft 365 administrator:
 The production implementation should use managed identity, not a client secret. The daily process
 is only a checkpoint scan: on most days it sends nothing. It sends one message only when an agent
 has reached an unsent monthly anniversary. Apply
-`supabase/migrations/20261014000001_savings_editors.sql` to Azure PostgreSQL. That folder is the
+`supabase/migrations/20261014000001_savings_editors.sql` and
+`supabase/migrations/20261021000001_went_live_on.sql` to Azure PostgreSQL. That folder is the
 schema history for Azure; it is not a Supabase database.
 
 ### Public links
