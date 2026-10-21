@@ -54,13 +54,16 @@ export function monthsInService(
   return (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth()) + 1
 }
 
-export function liveSinceISO(
-  agent: Pick<Agent, 'target_go_live' | 'current_stage_id'>,
+type WentLiveAgent = Pick<Agent, 'current_stage_id'> & { went_live_on?: string | null }
+
+/** The recorded day an agent went live. A target date is not a went-live date. */
+export function wentLiveISO(
+  agent: WentLiveAgent,
   agentStages: Array<Pick<AgentStage, 'stage_id' | 'actual_start' | 'actual_end'>>,
   stages: Stage[],
-  today: Date = new Date(),
 ): string | null {
   if (!isLiveAgent(agent, stages)) return null
+  if (agent.went_live_on) return agent.went_live_on.slice(0, 10)
   const live = liveStage(stages)
   const liveRow = agentStages.find((row) => row.stage_id === live?.id)
   if (liveRow?.actual_start) return liveRow.actual_start.slice(0, 10)
@@ -72,8 +75,20 @@ export function liveSinceISO(
     )
     .sort((a, b) => b.stage.sort_order - a.stage.sort_order)[0]
   if (prior?.row.actual_end) return prior.row.actual_end.slice(0, 10)
-  if (agent.target_go_live) return agent.target_go_live.slice(0, 10)
-  return todayISO(today)
+  return null
+}
+
+export function liveSinceISO(
+  agent: Pick<Agent, 'target_go_live' | 'current_stage_id'> & { went_live_on?: string | null },
+  agentStages: Array<Pick<AgentStage, 'stage_id' | 'actual_start' | 'actual_end'>>,
+  stages: Stage[],
+  today: Date = new Date(),
+): string | null {
+  if (!isLiveAgent(agent, stages)) return null
+  return (
+    wentLiveISO(agent, agentStages, stages) ??
+    (agent.target_go_live ? agent.target_go_live.slice(0, 10) : todayISO(today))
+  )
 }
 
 /** Months live × the monthly rate. Not a full-year projection. */

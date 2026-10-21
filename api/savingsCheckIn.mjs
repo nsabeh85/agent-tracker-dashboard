@@ -10,7 +10,8 @@ export async function runDueSavingsCheckIns(pool, today = new Date()) {
     'SELECT id, name, sort_order, default_duration_days FROM public.stages',
   )
   const agents = await pool.query(`
-    SELECT agent.id, agent.title, agent.status, agent.current_stage_id, agent.target_go_live,
+    SELECT agent.id, agent.title, agent.status, agent.current_stage_id,
+           agent.went_live_on::text AS went_live_on,
            COALESCE(
              json_agg(
                json_build_object(

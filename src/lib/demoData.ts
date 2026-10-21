@@ -165,6 +165,7 @@ export const demoAgents: AgentWithStages[] = JIRA_INTAKE.map((row, index) => {
     copilot_studio_url: null,
     savings_amount: null,
     savings_cadence: 'yearly',
+    went_live_on: null,
     created_at: stamp(-created),
     updated_at: stamp(-created),
     agent_stages: buildStages(row),
@@ -190,6 +191,9 @@ for (const row of DEMO_SAVINGS) {
   if (row.live) {
     agent.current_stage_id = 'stage-5'
     agent.status = 'active'
+    agent.went_live_on = '2026-09-04'
+    const liveRow = agent.agent_stages.find((stage) => stage.stage_id === 'stage-5')
+    if (liveRow) liveRow.actual_start = '2026-09-04'
   }
 }
 if (demoAgents[0]) {

@@ -24,7 +24,7 @@ import {
   statusLabel,
 } from '../lib/schedule'
 import { copilotStudioLabel } from '../lib/copilotStudioLink'
-import { formatUsd, liveRealizedSavings, savingsLabel } from '../lib/savings'
+import { formatUsd, liveRealizedSavings, savingsLabel, wentLiveISO } from '../lib/savings'
 import type { AgentPriority, AgentWithStages, Stage } from '../types/database'
 
 
@@ -216,6 +216,7 @@ function AgentListItem({
   const overdue = isPastTargetGoLive(agent, stages)
   const behind = isAgentBehind(agent, agent.agent_stages, stages)
   const live = isLiveAgent(agent, stages)
+  const wentLive = live ? wentLiveISO(agent, agent.agent_stages, stages) : null
   const savings = live ? savingsLabel(agent.savings_amount, agent.savings_cadence) : null
   const savedSoFar = live ? liveRealizedSavings(agent, stages) : 0
   const ownerSummary =
@@ -304,20 +305,25 @@ function AgentListItem({
             <p className="text-ink-900 dark:text-ink-50 text-sm font-bold">
               {formatDate(agent.target_go_live)}
             </p>
-            <p
-              className={[
-                'text-xs font-semibold',
-                live
-                  ? 'text-emerald-600'
-                  : overdue
-                    ? 'text-red-600'
-                    : behind
-                      ? 'text-amber-600'
-                      : 'text-ink-400',
-              ].join(' ')}
-            >
-              {live ? 'Live now' : dueLabel(agent.target_go_live)}
-            </p>
+            {live ? (
+              <>
+                <p className="text-ink-400 mt-2 text-[10px] font-bold tracking-[0.12em] uppercase">
+                  Went live
+                </p>
+                <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                  {wentLive ? formatDate(wentLive) : 'Not recorded'}
+                </p>
+              </>
+            ) : (
+              <p
+                className={[
+                  'text-xs font-semibold',
+                  overdue ? 'text-red-600' : behind ? 'text-amber-600' : 'text-ink-400',
+                ].join(' ')}
+              >
+                {dueLabel(agent.target_go_live)}
+              </p>
+            )}
             {savings ? (
               <p className="text-emerald-700 dark:text-emerald-400 mt-1 text-xs font-semibold">
                 Saves {savings}

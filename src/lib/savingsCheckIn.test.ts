@@ -33,6 +33,7 @@ function agent(overrides: Partial<AgentWithStages> = {}): AgentWithStages {
     updated_at: '2026-01-01T00:00:00Z',
     savings_amount: null,
     savings_cadence: 'yearly',
+    went_live_on: '2026-01-01',
     copilot_studio_url: null,
     agent_owners: [],
     agent_stages: [
@@ -54,6 +55,7 @@ function agent(overrides: Partial<AgentWithStages> = {}): AgentWithStages {
 function liveOn(iso: string): AgentWithStages {
   const row = agent()
   row.target_go_live = iso
+  row.went_live_on = iso
   row.agent_stages = row.agent_stages.map((stage) => ({ ...stage, actual_start: iso }))
   return row
 }
@@ -120,6 +122,26 @@ describe('production cost check-ins', () => {
     expect(savingsReminderLabel(live, stages, new Date(2027, 10, 10))).toBe('one year and one month')
     expect(savingsReminderLabel(agent({ status: 'complete' }), stages, new Date(2027, 0, 10))).toBeNull()
     expect(savingsReminderLabel(agent({ current_stage_id: 'build' }), stages, new Date(2027, 0, 10))).toBeNull()
+  })
+
+  it('uses the recorded went-live date and ignores the target date', () => {
+    const recorded = agent({
+      went_live_on: '2026-10-10',
+      target_go_live: '2026-01-01',
+      agent_stages: agent().agent_stages.map((stage) => ({ ...stage, actual_start: null })),
+    })
+    const unrecorded = agent({
+      went_live_on: null,
+      target_go_live: '2026-01-01',
+      agent_stages: agent().agent_stages.map((stage) => ({
+        ...stage,
+        actual_start: null,
+        actual_end: null,
+      })),
+    })
+
+    expect(savingsReminderLabel(recorded, stages, new Date(2026, 10, 10))).toBe('one month')
+    expect(savingsReminderLabel(unrecorded, stages, new Date(2026, 10, 10))).toBeNull()
   })
 
   it('asks for the cost saved on the dashboard', () => {

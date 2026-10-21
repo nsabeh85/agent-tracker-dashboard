@@ -10,6 +10,7 @@ import {
   savingsLabel,
   totalLiveAnnualSavings,
   totalLiveRealizedSavings,
+  wentLiveISO,
 } from './savings'
 import type { AgentWithStages, Stage } from '../types/database'
 
@@ -50,6 +51,7 @@ function agent({
     updated_at: '2026-09-01T00:00:00Z',
     savings_amount: amount,
     savings_cadence: cadence,
+    went_live_on: liveStart,
     copilot_studio_url: null,
     agent_owners: [],
     agent_stages: liveStart
@@ -70,6 +72,19 @@ function agent({
 }
 
 describe('savings math', () => {
+  it('records the live start and does not use the target date', () => {
+    const live = agent({ id: 'live', liveStart: '2026-09-04' })
+    live.target_go_live = '2026-01-01'
+    expect(wentLiveISO(live, live.agent_stages, stages)).toBe('2026-09-04')
+
+    const targetOnly = agent({ id: 'target', liveStart: null })
+    targetOnly.target_go_live = '2026-01-01'
+    expect(wentLiveISO(targetOnly, targetOnly.agent_stages, stages)).toBeNull()
+
+    const earlier = agent({ id: 'building', stageId: 'requested', liveStart: '2026-09-04' })
+    expect(wentLiveISO(earlier, earlier.agent_stages, stages)).toBeNull()
+  })
+
   it('parses blank, valid, and invalid amounts', () => {
     expect(parseSavingsAmount('')).toBeNull()
     expect(parseSavingsAmount(' 1,200.5 ')).toBe(1200.5)

@@ -1,4 +1,4 @@
-import { liveSinceISO } from './savings'
+import { wentLiveISO } from './savings'
 import { isLiveAgent, parseISODate, startOfDay } from './schedule'
 import type { Agent, AgentStage, Stage } from '../types/database'
 
@@ -38,7 +38,7 @@ export function canUpdateLiveSavings(email: string | null | undefined): boolean 
   return normalized != null && SAVINGS_EDITOR_EMAILS.includes(normalized)
 }
 
-type CheckInAgent = Pick<Agent, 'status' | 'current_stage_id' | 'target_go_live'> & {
+type CheckInAgent = Pick<Agent, 'status' | 'current_stage_id' | 'went_live_on'> & {
   agent_stages: Array<Pick<AgentStage, 'stage_id' | 'actual_start' | 'actual_end'>>
 }
 
@@ -93,7 +93,7 @@ export function savingsReminderLabel(
 ): string | null {
   if (!isLiveAgent(agent, stages)) return null
   if (agent.status === 'complete' || agent.status === 'cancelled') return null
-  const months = completedLiveMonths(liveSinceISO(agent, agent.agent_stages, stages, today), today)
+  const months = completedLiveMonths(wentLiveISO(agent, agent.agent_stages, stages), today)
   return tenureLabel(months)
 }
 
@@ -113,7 +113,7 @@ export function dueSavingsCheckpoint(
 ): number | null {
   if (!isLiveAgent(agent, stages)) return null
   if (agent.status === 'complete' || agent.status === 'cancelled') return null
-  const months = completedLiveMonths(liveSinceISO(agent, agent.agent_stages, stages, today), today)
+  const months = completedLiveMonths(wentLiveISO(agent, agent.agent_stages, stages), today)
   if (months < 1 || sentPeriods.includes(months)) return null
   return months
 }
