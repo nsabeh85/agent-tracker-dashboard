@@ -1,5 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { AgentTitle } from '../components/AgentTitle'
+import { CheckListSelect } from '../components/CheckListSelect'
 import { SavingsBreakdown } from '../components/SavingsBreakdown'
 import { SavingsCheckIns } from '../components/SavingsCheckIns'
 import { SummaryStrip } from '../components/SummaryStrip'
@@ -8,11 +10,11 @@ import { ScheduleMarker } from '../components/ScheduleMarker'
 import { useAgents, useCatalog, useRealtimeTick } from '../hooks/useTracker'
 import {
   compareAgents,
-  isShownOnDashboard,
+  leftBarTone,
+  matchesBoardFilters,
   matchesDashboardMetric,
   type DashboardMetric,
   type DashboardSort,
-  type StatusFilter,
 } from '../lib/dashboard'
 import {
   dueLabel,
@@ -25,7 +27,25 @@ import {
 } from '../lib/schedule'
 import { copilotStudioLabel } from '../lib/copilotStudioLink'
 import { formatUsd, liveRealizedSavings, savingsLabel, wentLiveISO } from '../lib/savings'
-import type { AgentPriority, AgentWithStages, Stage } from '../types/database'
+import type { AgentPriority, AgentStatus, AgentWithStages, Stage } from '../types/database'
+
+const STATUS_OPTIONS: { value: AgentStatus; label: string }[] = [
+  { value: 'pending_approval', label: 'Pending approval' },
+  { value: 'active', label: 'Active' },
+  { value: 'on_hold', label: 'On hold' },
+  { value: 'backlog', label: 'Backlog' },
+  { value: 'cancelled', label: 'Cancelled' },
+  { value: 'complete', label: 'Complete' },
+]
+
+const LEFT_BAR: Record<ReturnType<typeof leftBarTone>, string> = {
+  hold: 'bg-red-500',
+  blocked: 'bg-red-500',
+  overdue: 'bg-red-500',
+  behind: 'bg-amber-400',
+  live: 'bg-emerald-500',
+  default: 'bg-brand-500',
+}
 
 
 const PRIORITY_STYLE: Record<AgentPriority, string> = {
@@ -68,10 +88,10 @@ export function DashboardPage() {
   const owners = ownerCatalog.filter((owner) => owner.active)
   const { agents, loading, error } = useAgents(tick)
 
-  const [stageId, setStageId] = useState('')
-  const [owner, setOwner] = useState('')
-  const [department, setDepartment] = useState('')
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('board')
+  const [stageIds, setStageIds] = useState<string[]>([])
+  const [ownerNames, setOwnerNames] = useState<string[]>([])
+  const [departmentNames, setDepartmentNames] = useState<string[]>([])
+  const [statuses, setStatuses] = useState<AgentStatus[]>([])
   const [summaryMetric, setSummaryMetric] = useState<DashboardMetric | null>(null)
   const [sort, setSort] = useState<DashboardSort>('priority')
 
@@ -85,27 +105,22 @@ export function DashboardPage() {
     return agents
       .filter((agent) => {
         if (summaryMetric && !matchesDashboardMetric(agent, stages, summaryMetric)) return false
-        if (!isShownOnDashboard(agent.status, statusFilter)) return false
-        if (stageId && agent.current_stage_id !== stageId) return false
-        if (
-          owner &&
-          !agent.agent_owners.some((assignment) => assignment.owner.full_name === owner) &&
-          !(agent.agent_owners.length === 0 && agent.assigned_to === owner)
-        ) {
-          return false
-        }
-        if (department && agent.requester_department !== department) return false
-        return true
+        return matchesBoardFilters(agent, {
+          stageIds,
+          owners: ownerNames,
+          departments: departmentNames,
+          statuses,
+        })
       })
       .sort((a, b) => compareAgents(a, b, sort))
-  }, [agents, department, owner, sort, stageId, stages, statusFilter, summaryMetric])
+  }, [agents, departmentNames, ownerNames, sort, stageIds, stages, statuses, summaryMetric])
 
   function selectSummaryMetric(metric: DashboardMetric | null) {
     setSummaryMetric(metric)
-    setStageId('')
-    setOwner('')
-    setDepartment('')
-    setStatusFilter('board')
+    setStageIds([])
+    setOwnerNames([])
+    setDepartmentNames([])
+    setStatuses([])
   }
 
   return (
@@ -118,43 +133,40 @@ export function DashboardPage() {
       />
 
       <div className="border-ink-200/70 dark:border-ink-800 dark:bg-ink-900/50 grid grid-cols-2 gap-3 rounded-2xl border bg-white/70 p-3 backdrop-blur-sm sm:grid-cols-3 md:flex md:flex-wrap md:items-end md:p-4">
-        <Select label="Stage" value={stageId} onChange={setStageId}>
-          <option value="">All stages</option>
-          {stages.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </Select>
-        <Select label="Owner" value={owner} onChange={setOwner}>
-          <option value="">All owners</option>
-          {owners.map((owner) => (
-            <option key={owner.id} value={owner.full_name}>
-              {owner.full_name}
-            </option>
-          ))}
-        </Select>
-        <Select label="Department" value={department} onChange={setDepartment}>
-          <option value="">All departments</option>
-          {departments.map((department) => (
-            <option key={department.id} value={department.name}>
-              {department.name}
-            </option>
-          ))}
-        </Select>
-        <Select
+        <CheckListSelect
+          label="Stage"
+          emptyLabel="All stages"
+          options={stages.map((stage) => ({ value: stage.id, label: stage.name }))}
+          selected={stageIds}
+          onChange={setStageIds}
+        />
+        <CheckListSelect
+          label="Owner"
+          emptyLabel="All owners"
+          options={owners.map((owner) => ({ value: owner.full_name, label: owner.full_name }))}
+          selected={ownerNames}
+          onChange={setOwnerNames}
+        />
+        <CheckListSelect
+          label="Department"
+          emptyLabel="All departments"
+          options={departments.map((department) => ({
+            value: department.name,
+            label: department.name,
+          }))}
+          selected={departmentNames}
+          onChange={setDepartmentNames}
+        />
+        <CheckListSelect
           label="Status"
-          value={statusFilter}
-          onChange={(value) => {
-            setStatusFilter(value as StatusFilter)
+          emptyLabel="On the board"
+          options={STATUS_OPTIONS}
+          selected={statuses}
+          onChange={(values) => {
+            setStatuses(values as AgentStatus[])
             setSummaryMetric(null)
           }}
-        >
-          <option value="board">On the board</option>
-          <option value="pending_approval">Pending approval</option>
-          <option value="active">Active only</option>
-          <option value="backlog">Backlog</option>
-        </Select>
+        />
         <Select
           label="Sort"
           value={sort}
@@ -213,22 +225,17 @@ function AgentListItem({
   stages: Stage[]
   index: number
 }) {
-  const overdue = isPastTargetGoLive(agent, stages)
+  const onHold = agent.status === 'on_hold'
+  const overdue = !onHold && isPastTargetGoLive(agent, stages)
   const behind = isAgentBehind(agent, agent.agent_stages, stages)
-  const live = isLiveAgent(agent, stages)
+  const live = !onHold && isLiveAgent(agent, stages)
   const wentLive = live ? wentLiveISO(agent, agent.agent_stages, stages) : null
   const savings = live ? savingsLabel(agent.savings_amount, agent.savings_cadence) : null
   const savedSoFar = live ? liveRealizedSavings(agent, stages) : 0
   const ownerSummary =
     agent.agent_owners.map((assignment) => assignment.owner.full_name).join(', ') ||
     agent.assigned_to
-  const accent = overdue
-    ? 'bg-red-500'
-    : behind
-      ? 'bg-amber-400'
-      : live
-        ? 'bg-emerald-500'
-        : 'bg-brand-500'
+  const accent = LEFT_BAR[leftBarTone(agent, stages)]
 
   return (
     <li className="rise relative" style={{ animationDelay: `${Math.min(index, 8) * 45}ms` }}>
@@ -252,9 +259,13 @@ function AgentListItem({
         <div className="flex flex-col gap-5 md:grid md:grid-cols-[minmax(0,1.15fr)_minmax(0,1.5fr)_auto] md:items-center md:gap-6">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-ink-900 group-hover:text-brand-700 dark:text-ink-50 dark:group-hover:text-brand-300 text-lg font-bold tracking-tight transition-colors md:text-xl">
-                {agent.title}
-              </h3>
+              <AgentTitle
+                title={agent.title}
+                sourceUrl={agent.source_url}
+                insideLink
+                className="text-ink-900 group-hover:text-brand-700 dark:text-ink-50 dark:group-hover:text-brand-300 text-lg font-bold tracking-tight transition-colors md:text-xl"
+                linkClassName="text-brand-700 underline decoration-brand-300 underline-offset-2 dark:text-brand-300"
+              />
               <ScheduleMarker
                 agent={agent}
                 agentStages={agent.agent_stages}
@@ -274,9 +285,11 @@ function AgentListItem({
               {agent.status !== 'active' ? (
                 <span
                   className={
-                    agent.status === 'pending_approval'
-                      ? 'rounded-full bg-amber-500 px-2 py-0.5 font-semibold text-white'
-                      : 'bg-ink-800 dark:bg-ink-700 rounded-full px-2 py-0.5 font-semibold text-white'
+                    agent.status === 'on_hold'
+                      ? 'rounded-full bg-slate-200 px-2 py-0.5 font-semibold text-slate-800 ring-1 ring-slate-300 dark:bg-slate-500/20 dark:text-slate-100 dark:ring-slate-400/40'
+                      : agent.status === 'pending_approval'
+                        ? 'rounded-full bg-amber-500 px-2 py-0.5 font-semibold text-white'
+                        : 'bg-ink-800 dark:bg-ink-700 rounded-full px-2 py-0.5 font-semibold text-white'
                   }
                 >
                   {statusLabel(agent.status)}
@@ -305,7 +318,9 @@ function AgentListItem({
             <p className="text-ink-900 dark:text-ink-50 text-sm font-bold">
               {formatDate(agent.target_go_live)}
             </p>
-            {live ? (
+            {onHold ? (
+              <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">On hold</p>
+            ) : live ? (
               <>
                 <p className="text-ink-400 mt-2 text-[10px] font-bold tracking-[0.12em] uppercase">
                   Went live

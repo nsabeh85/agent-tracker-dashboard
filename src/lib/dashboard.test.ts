@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { compareAgents, isShownOnDashboard, matchesDashboardMetric } from './dashboard'
+import {
+  compareAgents,
+  isShownOnDashboard,
+  leftBarTone,
+  matchesBoardFilters,
+  matchesDashboardMetric,
+} from './dashboard'
 import type { AgentPriority, AgentStatus, AgentWithStages, Stage } from '../types/database'
 
 const stages: Stage[] = [
@@ -122,6 +128,25 @@ describe('dashboard summary filters', () => {
         today,
       ),
     ).toBe(false)
+    expect(
+      matchesDashboardMetric(agent({ id: 'paused', status: 'on_hold' }), stages, 'on_hold', today),
+    ).toBe(true)
+    expect(
+      matchesDashboardMetric(
+        agent({ id: 'paused-live', status: 'on_hold', stageId: 'live' }),
+        stages,
+        'live',
+        today,
+      ),
+    ).toBe(false)
+    expect(
+      matchesDashboardMetric(
+        agent({ id: 'paused-late', status: 'on_hold', stageStarted: '2026-08-01' }),
+        stages,
+        'behind',
+        today,
+      ),
+    ).toBe(false)
   })
 })
 
@@ -129,11 +154,73 @@ describe('dashboard backlog', () => {
   it('keeps every status except backlog on the default board', () => {
     expect(isShownOnDashboard('pending_approval', 'board')).toBe(true)
     expect(isShownOnDashboard('active', 'board')).toBe(true)
+    expect(isShownOnDashboard('on_hold', 'board')).toBe(true)
     expect(isShownOnDashboard('backlog', 'board')).toBe(false)
   })
 
   it('shows backlog only when that filter is selected', () => {
     expect(isShownOnDashboard('backlog', 'backlog')).toBe(true)
     expect(isShownOnDashboard('active', 'backlog')).toBe(false)
+    expect(isShownOnDashboard('on_hold', 'on_hold')).toBe(true)
+    expect(isShownOnDashboard('active', 'on_hold')).toBe(false)
+  })
+})
+
+describe('dashboard multi-select filters', () => {
+  const filters = { stageIds: [], owners: [], departments: [], statuses: [] as AgentStatus[] }
+
+  it('hides backlog until that status is selected', () => {
+    expect(matchesBoardFilters(agent({ id: 'parked', status: 'backlog' }), filters)).toBe(false)
+    expect(
+      matchesBoardFilters(agent({ id: 'parked', status: 'backlog' }), {
+        ...filters,
+        statuses: ['backlog'],
+      }),
+    ).toBe(true)
+  })
+
+  it('keeps an agent when any selected stage, owner, or department matches', () => {
+    const row = agent({ id: 'finance', stageId: 'requested' })
+    row.requester_department = 'Finance'
+    row.agent_owners = [
+      {
+        owner_id: 'owner-1',
+        owner: {
+          id: 'owner-1',
+          full_name: 'Mark Seay',
+          active: true,
+          created_at: '2026-08-01T12:00:00Z',
+          sort_order: 1,
+        },
+      },
+    ]
+    expect(matchesBoardFilters(row, { ...filters, stageIds: ['live', 'requested'] })).toBe(true)
+    expect(matchesBoardFilters(row, { ...filters, stageIds: ['live'] })).toBe(false)
+    expect(matchesBoardFilters(row, { ...filters, owners: ['Mark Seay', 'Nabih Sabeh'] })).toBe(
+      true,
+    )
+    expect(matchesBoardFilters(row, { ...filters, departments: ['Finance', 'Legal'] })).toBe(true)
+    expect(matchesBoardFilters(row, { ...filters, departments: ['Legal'] })).toBe(false)
+  })
+})
+
+describe('dashboard left bar', () => {
+  const today = new Date('2026-10-21T12:00:00Z')
+
+  it('uses red for on hold and for a blocked current stage', () => {
+    expect(leftBarTone(agent({ id: 'paused', status: 'on_hold' }), stages, today)).toBe('hold')
+    const blocked = agent({ id: 'stuck' })
+    blocked.agent_stages[0].status = 'blocked'
+    expect(leftBarTone(blocked, stages, today)).toBe('blocked')
+  })
+
+  it('keeps a live agent green', () => {
+    expect(
+      leftBarTone(
+        agent({ id: 'shipped', stageId: 'live', target: '2026-12-01' }),
+        stages,
+        today,
+      ),
+    ).toBe('live')
   })
 })

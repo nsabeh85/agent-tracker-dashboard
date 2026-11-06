@@ -1,3 +1,4 @@
+import { AgentTitle } from './AgentTitle'
 import {
   formatUsd,
   liveAgentsWithSavings,
@@ -82,7 +83,12 @@ export function SavingsBreakdown({
               {rows.map(({ agent, annual, realized: agentRealized }) => (
                 <li key={agent.id} className="flex items-baseline justify-between gap-3 text-sm">
                   <span className="text-ink-800 dark:text-ink-100 min-w-0 truncate font-medium">
-                    {agent.title}
+                    <AgentTitle
+                      as="span"
+                      title={agent.title}
+                      sourceUrl={agent.source_url}
+                      linkClassName="text-brand-700 underline underline-offset-2 dark:text-brand-300"
+                    />
                   </span>
                   <span className="text-ink-900 dark:text-ink-50 shrink-0 font-semibold">
                     {savingsLabel(agent.savings_amount, agent.savings_cadence)}

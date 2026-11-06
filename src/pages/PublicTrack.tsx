@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { useParams } from 'react-router-dom'
+import { AgentTitle } from '../components/AgentTitle'
 import { ProgressBar } from '../components/ProgressBar'
 import { ScheduleMarker } from '../components/ScheduleMarker'
 import { CheckIcon } from '../components/StageIcon'
@@ -140,15 +141,23 @@ function PublicAgentView({ agent }: { agent: PublicAgent }) {
   return (
     <>
       <div className="space-y-2 pt-2 text-center">
-        <h1 className="text-ink-900 dark:text-ink-50 text-2xl font-bold tracking-tight md:text-3xl">
-          {agent.title}
-        </h1>
+        <AgentTitle
+          as="h1"
+          title={agent.title}
+          sourceUrl={agent.source_url}
+          className="text-ink-900 dark:text-ink-50 text-2xl font-bold tracking-tight md:text-3xl"
+          linkClassName="text-brand-700 underline underline-offset-2 dark:text-brand-300"
+        />
         <div className="flex flex-wrap items-center justify-center gap-2">
           <span className="bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300 rounded-full px-3 py-1 text-xs font-semibold">
             {live ? 'Live' : (current?.name ?? '—')}
           </span>
           <ScheduleMarker
-            agent={{ current_stage_id: agent.current_stage_id, target_go_live: agent.target_go_live }}
+            agent={{
+              current_stage_id: agent.current_stage_id,
+              target_go_live: agent.target_go_live,
+              status: agent.status,
+            }}
             agentStages={agentStages}
             stages={catalog}
             withLabel
