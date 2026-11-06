@@ -49,15 +49,17 @@ earlier work remains incomplete.
 
 ### Portfolio view
 
-The dashboard can filter by lifecycle stage, owner, department, and board status. It can sort by
-target date, priority, or last update. Summary cards and savings totals respond to the active
-filters. Backlog requests are hidden by default.
+The dashboard filters for stage, owner, department, and status each accept more than one
+selection, including On hold. It can sort by target date, priority, or last update. Summary cards
+and savings totals respond to the active filters. Backlog requests stay hidden until that status
+is selected. Finishing the Live stage asks whether the agent stays Live or is marked Complete.
 
 ### Agent record
 
 An agent record includes:
 
-- title, requester, department, description, priority, and board status;
+- title shown as the PCT number, linked to Jira, followed by the CDO intake name;
+- requester, department, description, priority, and board status;
 - one or more owners and per-stage owners;
 - target go-live date, the date the agent went live, and source request link;
 - Copilot Studio link;

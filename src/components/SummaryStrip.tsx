@@ -73,8 +73,9 @@ function Tile({
 export function SummaryStrip({ agents, stages, activeMetric, onMetricChange }: Props) {
   const pending = agents.filter((a) => a.status === 'pending_approval').length
   const inFlight = agents.filter((a) => isInFlight(a, stages)).length
-  const live = agents.filter((a) => isLiveAgent(a, stages)).length
+  const live = agents.filter((a) => a.status !== 'on_hold' && isLiveAgent(a, stages)).length
   const behind = agents.filter((a) => isAgentBehind(a, a.agent_stages, stages)).length
+  const onHold = agents.filter((a) => a.status === 'on_hold').length
   const thisMonth = agents.filter((a) => createdThisMonth(a.created_at)).length
 
   return (
@@ -87,10 +88,10 @@ export function SummaryStrip({ agents, stages, activeMetric, onMetricChange }: P
           Live status board
         </p>
         <h2 className="mt-1 max-w-xl text-2xl font-bold tracking-tight text-white md:text-3xl">
-          Every Copilot Studio request, from intake to live.
+          Every agent request, from intake to live.
         </h2>
 
-        <div className="mt-6 grid grid-cols-1 gap-3 @sm:grid-cols-2 @xl:grid-cols-3 @3xl:grid-cols-5">
+        <div className="mt-6 grid grid-cols-1 gap-3 @sm:grid-cols-2 @xl:grid-cols-3 @5xl:grid-cols-6">
           <Tile
             label="Pending approval"
             value={pending}
@@ -149,6 +150,18 @@ export function SummaryStrip({ agents, stages, activeMetric, onMetricChange }: P
             icon={
               <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden>
                 <path fill="currentColor" d="M12 2 1 21h22L12 2Zm1 7v6h-2V9h2Zm0 8v2h-2v-2h2Z" />
+              </svg>
+            }
+          />
+          <Tile
+            label="On hold"
+            value={onHold}
+            tone="plain"
+            active={activeMetric === 'on_hold'}
+            onClick={() => onMetricChange(activeMetric === 'on_hold' ? null : 'on_hold')}
+            icon={
+              <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden>
+                <path fill="currentColor" d="M8 5h3v14H8V5Zm5 0h3v14h-3V5Z" />
               </svg>
             }
           />

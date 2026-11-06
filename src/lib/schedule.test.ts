@@ -112,6 +112,14 @@ describe('agent schedule flags', () => {
     ).toBe(true)
     expect(
       isAgentBehind(
+        { target_go_live: '2026-03-01', current_stage_id: 's2', status: 'on_hold' },
+        [{ status: 'in_progress', actual_start: '2026-03-01', expected_duration_days: 5 }],
+        stages,
+        today,
+      ),
+    ).toBe(false)
+    expect(
+      isAgentBehind(
         { target_go_live: '2026-03-01', current_stage_id: 's2' },
         [{ status: 'in_progress', actual_start: '2026-03-18', expected_duration_days: 10 }],
         stages,

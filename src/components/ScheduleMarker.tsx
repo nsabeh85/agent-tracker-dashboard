@@ -2,13 +2,14 @@ import { isAgentBehind, isPastTargetGoLive } from '../lib/schedule'
 import type { Agent, AgentStage, Stage } from '../types/database'
 
 type Props = {
-  agent: Pick<Agent, 'target_go_live' | 'current_stage_id'>
+  agent: Pick<Agent, 'target_go_live' | 'current_stage_id'> & { status?: Agent['status'] }
   agentStages: AgentStage[]
   stages: Stage[]
   withLabel?: boolean
 }
 
 export function ScheduleMarker({ agent, agentStages, stages, withLabel = false }: Props) {
+  if (agent.status === 'on_hold') return null
   const overdue = isPastTargetGoLive(agent, stages)
   const behind = isAgentBehind(agent, agentStages, stages)
   if (!overdue && !behind) return null

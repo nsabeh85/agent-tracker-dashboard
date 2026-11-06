@@ -53,6 +53,28 @@ export const JIRA_INTAKE: JiraIntake[] = [
   { key: 'PCT-49', title: 'Executive Request - Equinix Analyst Bot', department: 'Executive', assignee: 'Nabih Sabeh', created: '2026-06-09', labels: [] },
 ]
 
+const INTAKE_BY_KEY = new Map(JIRA_INTAKE.map((row) => [row.key, row]))
+
+function normalizedName(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[–—-]/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+/** Exact CDO intake summary for a PCT key. */
+export function intakeTitle(key: string): string | undefined {
+  return INTAKE_BY_KEY.get(key.toUpperCase())?.title
+}
+
+/** Match a stored title to the intake row when the words are the same. */
+export function intakeByTitle(title: string): JiraIntake | undefined {
+  const wanted = normalizedName(title)
+  if (!wanted) return undefined
+  return JIRA_INTAKE.find((row) => normalizedName(row.title) === wanted)
+}
+
 export function ownerName(assignee: string): string {
   if (assignee === 'Nabih') return 'Nabih Sabeh'
   if (assignee === 'Mark') return 'Mark Seay'

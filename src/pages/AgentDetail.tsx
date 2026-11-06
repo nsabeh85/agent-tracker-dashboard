@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { AgentTitle } from '../components/AgentTitle'
 import { ProgressBar } from '../components/ProgressBar'
 import { ScheduleMarker } from '../components/ScheduleMarker'
 import { CheckIcon } from '../components/StageIcon'
@@ -34,6 +35,7 @@ import {
 } from '../lib/schedule'
 import { copilotStudioLabel } from '../lib/copilotStudioLink'
 import { canManageComment, replyIndentClass, threadComments } from '../lib/comments'
+import { editableTitle, presentedTitle } from '../lib/pctTitle'
 import { descriptionWithoutSource, isHttpsUrl, sourceLabel } from '../lib/sourceLink'
 import { supabase } from '../lib/supabase'
 import {
@@ -136,9 +138,13 @@ export function AgentDetailPage() {
         <div className="pointer-events-none absolute -top-20 -right-10 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
         <div className="relative space-y-4">
           <div className="flex flex-wrap items-center gap-3">
-            <h2 className="text-2xl font-bold tracking-tight text-white md:text-4xl">
-              {agent.title}
-            </h2>
+            <AgentTitle
+              as="h2"
+              title={agent.title}
+              sourceUrl={agent.source_url}
+              className="text-2xl font-bold tracking-tight text-white md:text-4xl"
+              linkClassName="underline decoration-white/60 underline-offset-4"
+            />
             <ScheduleMarker
               agent={agent}
               agentStages={agent.agent_stages}
@@ -280,6 +286,55 @@ function Chip({ label, value }: { label: string; value: string }) {
   )
 }
 
+function FinishChoice({
+  onChoose,
+  onCancel,
+}: {
+  onChoose: (outcome: 'live' | 'complete') => void
+  onCancel: () => void
+}) {
+  return (
+    <div className="border-ink-200 dark:border-ink-700 dark:bg-ink-900 flex flex-wrap items-center gap-2 rounded-xl border bg-white px-3 py-2 text-sm">
+      <span className="text-ink-700 dark:text-ink-200 font-medium">Finish this agent as</span>
+      <button
+        type="button"
+        className="rounded-full bg-emerald-600 px-3 py-1 text-sm font-semibold text-white"
+        onClick={() => onChoose('live')}
+      >
+        Live
+      </button>
+      <button
+        type="button"
+        className="bg-ink-800 rounded-full px-3 py-1 text-sm font-semibold text-white"
+        onClick={() => onChoose('complete')}
+      >
+        Complete
+      </button>
+      <button
+        type="button"
+        className="text-ink-500 dark:text-ink-400 px-2 py-1 text-sm font-medium"
+        onClick={onCancel}
+      >
+        Cancel
+      </button>
+    </div>
+  )
+}
+
+function isFinishingLive(
+  row: { stage: Stage },
+  step: AgentSubstep,
+  next: ProgressStatus,
+  isCurrent: boolean,
+  stageRows: Array<{ stage: Stage }>,
+  substeps: AgentSubstep[],
+): boolean {
+  if (next !== 'complete' || !isCurrent || row.stage.name !== 'Live') return false
+  if (stageRows.some((stage) => stage.stage.sort_order > row.stage.sort_order)) return false
+  const open = substeps.filter((item) => item.status !== 'complete')
+  return open.length === 1 && open[0]?.id === step.id
+}
+
 function StageCard({
   row,
   position,
@@ -303,6 +358,7 @@ function StageCard({
   onToggle: () => void
   onSaved: () => Promise<void>
 }) {
+  const [pendingFinish, setPendingFinish] = useState<AgentSubstep | null>(null)
   const behind = isStageBehind(row)
   const done = substeps.filter((s) => s.status === 'complete').length
   const itemStatus = stageStatusFromItems(substeps)
@@ -329,12 +385,11 @@ function StageCard({
     else await onSaved()
   }
 
-  async function toggleSubstep(step: AgentSubstep) {
-    const next: ProgressStatus = step.status === 'complete' ? 'not_started' : 'complete'
-    if (isLater) {
-      window.alert('Finish the current stage before changing a later stage.')
-      return
-    }
+  async function saveSubstep(
+    step: AgentSubstep,
+    next: ProgressStatus,
+    outcome?: 'live' | 'complete',
+  ) {
     const { error } = await supabase.rpc('set_agent_substep_status', {
       p_agent_substep_id: step.id,
       p_status: next,
@@ -343,7 +398,31 @@ function StageCard({
       window.alert(error.message)
       return
     }
+    if (outcome) {
+      const { error: statusError } = await supabase
+        .from('agents')
+        .update({ status: outcome === 'complete' ? 'complete' : 'active' })
+        .eq('id', row.agent_id)
+      if (statusError) {
+        window.alert(statusError.message)
+        return
+      }
+    }
+    setPendingFinish(null)
     await onSaved()
+  }
+
+  async function toggleSubstep(step: AgentSubstep) {
+    const next: ProgressStatus = step.status === 'complete' ? 'not_started' : 'complete'
+    if (isLater) {
+      window.alert('Finish the current stage before changing a later stage.')
+      return
+    }
+    if (isFinishingLive(row, step, next, isCurrent, stageRows, substeps)) {
+      setPendingFinish(step)
+      return
+    }
+    await saveSubstep(step, next)
   }
 
   return (
@@ -483,6 +562,13 @@ function StageCard({
               />
             </FieldGroup>
           </div>
+
+          {pendingFinish ? (
+            <FinishChoice
+              onChoose={(outcome) => void saveSubstep(pendingFinish, 'complete', outcome)}
+              onCancel={() => setPendingFinish(null)}
+            />
+          ) : null}
 
           <ul className="space-y-1">
             {substeps.map((step) => {
@@ -664,6 +750,7 @@ function AgentActions({
   const navigate = useNavigate()
   const [editing, setEditing] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [finishOpen, setFinishOpen] = useState(false)
   const [ownerIds, setOwnerIds] = useState(() =>
     agent.agent_owners.map((assignment) => assignment.owner_id),
   )
@@ -702,10 +789,12 @@ function AgentActions({
       window.alert(STAGES_COMPLETE_BEFORE_LIVE)
       return
     }
+    if (!next) {
+      setFinishOpen(true)
+      return
+    }
     const confirmed = window.confirm(
-      next
-        ? `Advance ${current.stage.name} now? Remaining items in this stage will be marked complete, then the tracker moves to ${next.stage.name}.`
-        : `Advance ${current.stage.name} now? Remaining items will be marked complete and this agent will be Complete.`,
+      `Advance ${current.stage.name} now? Remaining items in this stage will be marked complete, then the tracker moves to ${next.stage.name}.`,
     )
     if (!confirmed) return
     const { error } = await supabase.rpc('advance_agent_stage', {
@@ -716,15 +805,33 @@ function AgentActions({
     else await onSaved()
   }
 
+  async function finishAgent(outcome: 'live' | 'complete') {
+    const current = rows[index]
+    if (!current) return
+    setBusy(true)
+    const { error } = await supabase.rpc('advance_agent_stage', {
+      p_agent_id: agent.id,
+      p_agent_stage_id: current.id,
+    })
+    if (error) {
+      setBusy(false)
+      window.alert(error.message)
+      return
+    }
+    const { error: statusError } = await supabase
+      .from('agents')
+      .update({ status: outcome === 'complete' ? 'complete' : 'active' })
+      .eq('id', agent.id)
+    setBusy(false)
+    if (statusError) {
+      window.alert(statusError.message)
+      return
+    }
+    setFinishOpen(false)
+    await onSaved()
+  }
+
   async function setStatus(status: AgentStatus) {
-    if (agent.status === 'complete' && status !== 'complete') {
-      window.alert('Reopen a completed item before changing this agent from Complete.')
-      return
-    }
-    if (status === 'complete' && agent.status !== 'complete') {
-      window.alert('The agent becomes complete automatically when every Live item is complete.')
-      return
-    }
     if (status === 'active' && agent.status === 'pending_approval') {
       const first = rows[0]
       if (first && first.status === 'not_started') {
@@ -799,7 +906,7 @@ function AgentActions({
 
   async function deleteAgent() {
     const confirmed = window.confirm(
-      `Delete “${agent.title}”? Its stages, sub-steps, and comments go with it and cannot be recovered.`,
+      `Delete “${presentedTitle(agent.title, agent.source_url)}”? Its stages, sub-steps, and comments go with it and cannot be recovered.`,
     )
     if (!confirmed) return
     setBusy(true)
@@ -829,7 +936,7 @@ function AgentActions({
           disabled={busy || index < 0}
           onClick={() => void advanceStage()}
         >
-          Advance stage
+          {rows[index + 1] ? 'Advance stage' : 'Finish agent'}
         </button>
         <button
           type="button"
@@ -860,18 +967,28 @@ function AgentActions({
           <option value="backlog">Backlog</option>
           <option value="on_hold">On hold</option>
           <option value="cancelled">Cancelled</option>
-          <option value="complete" disabled={agent.status !== 'complete'}>
-            Complete (automatic)
-          </option>
+          <option value="complete">Complete</option>
         </select>
       </div>
+
+      {finishOpen ? (
+        <FinishChoice
+          onChoose={(outcome) => void finishAgent(outcome)}
+          onCancel={() => setFinishOpen(false)}
+        />
+      ) : null}
 
       {editing ? (
         <form
           onSubmit={(e) => void saveDetails(e)}
           className="border-ink-200/80 dark:border-ink-800 dark:bg-ink-900 grid gap-3 rounded-xl border bg-white p-4 sm:grid-cols-2"
         >
-          <EditField label="Title" name="title" defaultValue={agent.title} required />
+          <EditField
+            label="Title"
+            name="title"
+            defaultValue={editableTitle(agent.title, agent.source_url)}
+            required
+          />
           <EditField
             label="Requester"
             name="requester_name"

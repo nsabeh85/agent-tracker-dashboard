@@ -96,11 +96,19 @@ export function isPastTargetGoLive(
 }
 
 export function isAgentBehind(
-  agent: Pick<Agent, 'target_go_live' | 'current_stage_id'>,
+  agent: Pick<Agent, 'target_go_live' | 'current_stage_id'> & { status?: Agent['status'] },
   agentStages: Pick<AgentStage, 'status' | 'actual_start' | 'expected_duration_days'>[],
   stages: Stage[],
   today: Date = new Date(),
 ): boolean {
+  if (
+    agent.status === 'on_hold' ||
+    agent.status === 'cancelled' ||
+    agent.status === 'complete' ||
+    agent.status === 'backlog'
+  ) {
+    return false
+  }
   if (agentStages.some((stage) => isStageBehind(stage, today))) return true
   return isPastTargetGoLive(agent, stages, today)
 }
