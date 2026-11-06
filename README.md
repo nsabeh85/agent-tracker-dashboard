@@ -52,7 +52,7 @@ earlier work remains incomplete.
 The dashboard filters for stage, owner, department, and status each accept more than one
 selection, including On hold. It can sort by target date, priority, or last update. Summary cards
 and savings totals respond to the active filters. Backlog requests stay hidden until that status
-is selected. Finishing the Live stage asks whether the agent stays Live or is marked Complete.
+is selected. On the Live stage, the status is Live or Complete.
 
 ### Agent record
 

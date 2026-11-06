@@ -125,6 +125,7 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      <SavingsCheckIns agents={boardAgents} stages={stages} />
       <SummaryStrip
         agents={boardAgents}
         stages={stages}
@@ -181,7 +182,6 @@ export function DashboardPage() {
         </p>
       </div>
 
-      <SavingsCheckIns agents={boardAgents} stages={stages} />
       <SavingsBreakdown agents={boardAgents} stages={stages} />
 
       {error ? (
