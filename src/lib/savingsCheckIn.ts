@@ -149,19 +149,33 @@ function reminderText(reminder: CostReminder): string {
   ].join('\n')
 }
 
-/** One finished Outlook message for every reminder on the banner, to Justin with Ajay copied. */
+function costSubject(title: string): string {
+  return `${title}-cost`
+}
+
+/**
+ * Outlook opens a draft from to, subject, and body on the compose link.
+ * A separate cc parameter is ignored, so Cc is carried on the to value.
+ * Spaces stay percent-encoded so the subject does not turn them into plus signs.
+ */
+function outlookComposeUrl(to: string, cc: string, subject: string, body: string): string {
+  const compose = new URL('https://outlook.office.com/mail/deeplink/compose/')
+  compose.searchParams.set('to', `${to}?cc=${cc}`)
+  compose.searchParams.set('subject', subject)
+  compose.searchParams.set('body', body)
+  compose.search = compose.search.replaceAll('+', '%20').replaceAll('.', '%2E')
+  return compose.toString()
+}
+
+/** One finished Outlook draft for every reminder on the banner, to Justin with Ajay copied. */
 export function savingsBannerMailto(reminders: CostReminder[]): string {
-  const subject =
-    reminders.length === 1
-      ? `${reminders[0].title} has been live for ${reminders[0].periodLabel}`
-      : 'Cost saved check-in'
-  const query = [
-    `cc=${encodeURIComponent(SAVINGS_SECONDARY_EMAIL)}`,
-    `subject=${encodeURIComponent(subject)}`,
-    `body=${encodeURIComponent(reminders.map(reminderText).join('\n\n'))}`,
-  ].join('&')
-  const mailto = `mailto:${SAVINGS_PRIMARY_EMAIL}?${query}`
-  return `https://outlook.office.com/mail/deeplink/compose?mailtouri=${encodeURIComponent(mailto)}`
+  const subject = reminders.map((reminder) => costSubject(reminder.title)).join('; ')
+  return outlookComposeUrl(
+    SAVINGS_PRIMARY_EMAIL,
+    SAVINGS_SECONDARY_EMAIL,
+    subject,
+    reminders.map(reminderText).join('\n\n'),
+  )
 }
 
 /** Opens Outlook on the web to Justin, with Ajay copied. */
