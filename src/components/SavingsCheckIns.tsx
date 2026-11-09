@@ -24,7 +24,7 @@ export function SavingsCheckIns({
   })
   if (due.length === 0) return null
 
-  const mailto = savingsBannerMailto(
+  const outlookUrl = savingsBannerMailto(
     due.map((item) => ({
       title: item.label,
       periodLabel: item.period,
@@ -39,7 +39,7 @@ export function SavingsCheckIns({
           Cost check-in
         </h2>
         <a
-          href={mailto}
+          href={outlookUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="rounded-full bg-amber-700 px-4 py-1.5 text-sm font-semibold text-white hover:bg-amber-800"
@@ -48,7 +48,7 @@ export function SavingsCheckIns({
         </a>
       </div>
       <p className="mt-1 text-sm text-amber-800 dark:text-amber-100/80">
-        Send opens the finished email in Outlook to Justin Taylor, with Ajay Sudra copied. Send it from that Outlook window.
+        Send opens an Outlook draft to Justin Taylor, with Ajay Sudra copied. The subject is the agent name from the board, then -cost. Send it from that window.
       </p>
       <ul className="mt-3 space-y-2">
         {due.map((item) => {
