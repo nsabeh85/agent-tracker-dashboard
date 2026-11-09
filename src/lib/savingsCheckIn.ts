@@ -149,7 +149,7 @@ function reminderText(reminder: CostReminder): string {
   ].join('\n')
 }
 
-/** One finished email for every reminder on the banner, to Justin with Ajay copied. */
+/** One finished Outlook message for every reminder on the banner, to Justin with Ajay copied. */
 export function savingsBannerMailto(reminders: CostReminder[]): string {
   const subject =
     reminders.length === 1
@@ -160,10 +160,11 @@ export function savingsBannerMailto(reminders: CostReminder[]): string {
     `subject=${encodeURIComponent(subject)}`,
     `body=${encodeURIComponent(reminders.map(reminderText).join('\n\n'))}`,
   ].join('&')
-  return `mailto:${SAVINGS_PRIMARY_EMAIL}?${query}`
+  const mailto = `mailto:${SAVINGS_PRIMARY_EMAIL}?${query}`
+  return `https://outlook.office.com/mail/deeplink/compose?mailtouri=${encodeURIComponent(mailto)}`
 }
 
-/** Opens the signed-in person's mail app to Justin, with Ajay copied. */
+/** Opens Outlook on the web to Justin, with Ajay copied. */
 export function savingsReminderMailto(
   title: string,
   periodLabel: string,

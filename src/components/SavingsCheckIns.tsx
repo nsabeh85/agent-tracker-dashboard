@@ -40,13 +40,15 @@ export function SavingsCheckIns({
         </h2>
         <a
           href={mailto}
+          target="_blank"
+          rel="noopener noreferrer"
           className="rounded-full bg-amber-700 px-4 py-1.5 text-sm font-semibold text-white hover:bg-amber-800"
         >
           Send
         </a>
       </div>
       <p className="mt-1 text-sm text-amber-800 dark:text-amber-100/80">
-        Send opens the finished email to Justin Taylor, with Ajay Sudra copied. Send it from your mailbox.
+        Send opens the finished email in Outlook to Justin Taylor, with Ajay Sudra copied. Send it from that Outlook window.
       </p>
       <ul className="mt-3 space-y-2">
         {due.map((item) => {

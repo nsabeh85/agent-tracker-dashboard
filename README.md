@@ -85,8 +85,9 @@ then “two months,” “three months,” “one year,” “one year and one m
 months,” and so on. Justin Taylor or Ajay Sudra can enter that cost on the agent page. Other
 editors can set an initial estimate when the agent is created, and cannot change it afterward.
 
-The cost banner has **Send**. It opens one finished message to Justin Taylor, with Ajay Sudra
-copied, covering every agent that is due. The signed-in person sends it from their own mailbox.
+The cost banner has **Send**. It opens one finished message in Outlook on the web to Justin Taylor,
+with Ajay Sudra copied, covering every agent that is due. The signed-in person sends it from that
+Outlook window.
 
 The API can also send that message once a day from Lauren Lawhon's mailbox. That send uses the
 App Service managed identity, not a client secret, and it stays quiet until an Entra/Microsoft
