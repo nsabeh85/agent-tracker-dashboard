@@ -133,3 +133,46 @@ export function savingsCheckInMessage(title: string, monthsLive: number, boardUr
     ].join('\n'),
   }
 }
+
+export type CostReminder = {
+  title: string
+  periodLabel: string
+  boardUrl: string
+}
+
+function reminderText(reminder: CostReminder): string {
+  return [
+    `${reminder.title} has been live for ${reminder.periodLabel}. How is it going, and what do you think you have saved by using this agent?`,
+    '',
+    'Update Cost saved on the board:',
+    reminder.boardUrl,
+  ].join('\n')
+}
+
+/** One finished email for every reminder on the banner, to Justin with Ajay copied. */
+export function savingsBannerMailto(reminders: CostReminder[]): string {
+  const subject =
+    reminders.length === 1
+      ? `${reminders[0].title} has been live for ${reminders[0].periodLabel}`
+      : 'Cost saved check-in'
+  const query = [
+    `cc=${encodeURIComponent(SAVINGS_SECONDARY_EMAIL)}`,
+    `subject=${encodeURIComponent(subject)}`,
+    `body=${encodeURIComponent(reminders.map(reminderText).join('\n\n'))}`,
+  ].join('&')
+  return `mailto:${SAVINGS_PRIMARY_EMAIL}?${query}`
+}
+
+/** Opens the signed-in person's mail app to Justin, with Ajay copied. */
+export function savingsReminderMailto(
+  title: string,
+  periodLabel: string,
+  boardUrl: string,
+): string {
+  return savingsBannerMailto([{ title, periodLabel, boardUrl }])
+}
+
+export function savingsCheckInMailto(title: string, monthsLive: number, boardUrl: string): string {
+  const period = tenureLabel(monthsLive) ?? `${monthsLive} months`
+  return savingsReminderMailto(title, period, boardUrl)
+}

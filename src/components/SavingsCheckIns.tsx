@@ -1,7 +1,11 @@
 import { Link } from 'react-router-dom'
 import { AgentTitle } from './AgentTitle'
 import { presentedTitle } from '../lib/pctTitle'
-import { savingsDashboardAlert, savingsReminderLabel } from '../lib/savingsCheckIn'
+import {
+  savingsBannerMailto,
+  savingsDashboardAlert,
+  savingsReminderLabel,
+} from '../lib/savingsCheckIn'
 import type { AgentWithStages, Stage } from '../types/database'
 
 export function SavingsCheckIns({
@@ -20,13 +24,29 @@ export function SavingsCheckIns({
   })
   if (due.length === 0) return null
 
+  const mailto = savingsBannerMailto(
+    due.map((item) => ({
+      title: item.label,
+      periodLabel: item.period,
+      boardUrl: `${window.location.origin}/agents/${item.id}`,
+    })),
+  )
+
   return (
     <section className="rounded-3xl border border-amber-200 bg-amber-50 px-5 py-4 dark:border-amber-500/30 dark:bg-amber-500/10">
-      <h2 className="text-sm font-semibold text-amber-900 dark:text-amber-200">
-        Cost check-in
-      </h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+          Cost check-in
+        </h2>
+        <a
+          href={mailto}
+          className="rounded-full bg-amber-700 px-4 py-1.5 text-sm font-semibold text-white hover:bg-amber-800"
+        >
+          Send
+        </a>
+      </div>
       <p className="mt-1 text-sm text-amber-800 dark:text-amber-100/80">
-        Justin Taylor or Ajay Sudra can enter the cost saved. The reminder appears each month on the same calendar day the agent went live, from one month through one year and one month, and onward.
+        Send opens the finished email to Justin Taylor, with Ajay Sudra copied. Send it from your mailbox.
       </p>
       <ul className="mt-3 space-y-2">
         {due.map((item) => {

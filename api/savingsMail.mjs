@@ -20,15 +20,30 @@ export function savingsFromAddress() {
 }
 
 export function mailConfigured() {
+  const from = savingsFromAddress()
+  if (!from) return false
+  if (process.env.IDENTITY_ENDPOINT && process.env.IDENTITY_HEADER) return true
   return Boolean(
     process.env.GRAPH_TENANT_ID &&
       process.env.GRAPH_CLIENT_ID &&
-      process.env.GRAPH_CLIENT_SECRET &&
-      savingsFromAddress(),
+      process.env.GRAPH_CLIENT_SECRET,
   )
 }
 
 async function graphToken() {
+  if (process.env.IDENTITY_ENDPOINT && process.env.IDENTITY_HEADER) {
+    const endpoint = new URL(process.env.IDENTITY_ENDPOINT)
+    endpoint.searchParams.set('resource', 'https://graph.microsoft.com')
+    endpoint.searchParams.set('api-version', '2019-08-01')
+    const response = await fetch(endpoint, {
+      headers: { 'X-IDENTITY-HEADER': process.env.IDENTITY_HEADER },
+    })
+    if (!response.ok) throw new Error('mail_token_failed')
+    const payload = await response.json()
+    if (!payload.access_token) throw new Error('mail_token_failed')
+    return payload.access_token
+  }
+
   const body = new URLSearchParams({
     client_id: process.env.GRAPH_CLIENT_ID,
     client_secret: process.env.GRAPH_CLIENT_SECRET,

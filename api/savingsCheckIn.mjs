@@ -1,4 +1,5 @@
 import { dueSavingsCheckpoint, savingsCheckInMessage } from '../src/lib/savingsCheckIn.ts'
+import { presentedTitle } from '../src/lib/pctTitle.ts'
 import { mailConfigured, savingsRecipients, sendSavingsEmail } from './savingsMail.mjs'
 
 const BOARD_URL = (
@@ -10,7 +11,7 @@ export async function runDueSavingsCheckIns(pool, today = new Date()) {
     'SELECT id, name, sort_order, default_duration_days FROM public.stages',
   )
   const agents = await pool.query(`
-    SELECT agent.id, agent.title, agent.status, agent.current_stage_id,
+    SELECT agent.id, agent.title, agent.source_url, agent.status, agent.current_stage_id,
            agent.went_live_on::text AS went_live_on,
            COALESCE(
              json_agg(
@@ -53,7 +54,7 @@ export async function runDueSavingsCheckIns(pool, today = new Date()) {
   let sentCount = 0
   for (const item of due) {
     const message = savingsCheckInMessage(
-      item.agent.title,
+      presentedTitle(item.agent.title, item.agent.source_url),
       item.period,
       `${BOARD_URL}/agents/${item.agent.id}`,
     )

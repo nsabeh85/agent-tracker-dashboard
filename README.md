@@ -49,6 +49,10 @@ earlier work remains incomplete.
 
 ### Portfolio view
 
+Administrators can paste and save an Approval Package link and a Confluence link on the board.
+Signed-in people open those saved addresses as hyperlinks. Apply
+`supabase/migrations/20261109000001_board_links.sql` before the first save.
+
 The dashboard filters for stage, owner, department, and status each accept more than one
 selection, including On hold. It can sort by target date, priority, or last update. Summary cards
 and savings totals respond to the active filters. Backlog requests stay hidden until that status
@@ -84,17 +88,20 @@ then “two months,” “three months,” “one year,” “one year and one m
 months,” and so on. Justin Taylor or Ajay Sudra can enter that cost on the agent page. Other
 editors can set an initial estimate when the agent is created, and cannot change it afterward.
 
-The email to Justin Taylor, with Ajay Sudra copied, waits until later. Do not enable it until
-an Entra/Microsoft 365 administrator:
+The cost banner has **Send**. It opens one finished message to Justin Taylor, with Ajay Sudra
+copied, covering every agent that is due. The signed-in person sends it from their own mailbox.
+
+The API can also send that message once a day from Lauren Lawhon's mailbox. That send uses the
+App Service managed identity, not a client secret, and it stays quiet until an Entra/Microsoft
+365 administrator:
 
 1. enables the system-assigned managed identity for `app-agtracker-api`;
 2. grants that identity Microsoft Graph `Mail.Send` application permission with admin consent;
 3. restricts Exchange application access to `llawhon@digitalrealty.com`; and
 4. confirms the restriction before a test email is sent.
 
-The production implementation should use managed identity, not a client secret. The daily process
-is only a checkpoint scan: on most days it sends nothing. It sends one message only when an agent
-has reached an unsent monthly anniversary. Apply
+The daily process is only a checkpoint scan: on most days it sends nothing. It sends one message
+only when an agent has reached an unsent monthly anniversary. Apply
 `supabase/migrations/20261014000001_savings_editors.sql` and
 `supabase/migrations/20261021000001_went_live_on.sql` to Azure PostgreSQL. That folder is the
 schema history for Azure; it is not a Supabase database.
