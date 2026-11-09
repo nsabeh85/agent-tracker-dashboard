@@ -4,6 +4,8 @@ import {
   completedLiveMonths,
   dueSavingsCheckpoint,
   savingsCheckInMessage,
+  savingsBannerMailto,
+  savingsCheckInMailto,
   savingsDashboardAlert,
   savingsReminderLabel,
   tenureLabel,
@@ -158,5 +160,38 @@ describe('production cost check-ins', () => {
     expect(message.subject).toBe('Due Diligence Agent has been live for one year and one month')
     expect(message.text).toContain('what do you think you have saved')
     expect(message.text).toContain('https://tracker.example/agents/1')
+  })
+
+  it('addresses the cost email to Justin and copies Ajay', () => {
+    const href = savingsCheckInMailto(
+      'Due Diligence Agent',
+      1,
+      'https://tracker.example/agents/1',
+    )
+    expect(href.startsWith('mailto:jtaylor@digitalrealty.com?')).toBe(true)
+    expect(href).toContain('cc=asudra%40digitalrealty.com')
+    expect(decodeURIComponent(href)).toContain('has been live for one month')
+    expect(decodeURIComponent(href)).toContain('https://tracker.example/agents/1')
+  })
+
+  it('puts every due agent in one email from the banner', () => {
+    const href = savingsBannerMailto([
+      {
+        title: 'Due Diligence Agent',
+        periodLabel: 'one month',
+        boardUrl: 'https://tracker.example/agents/1',
+      },
+      {
+        title: 'PCT-49 Executive Request - Equinix Analyst Bot',
+        periodLabel: 'two months',
+        boardUrl: 'https://tracker.example/agents/2',
+      },
+    ])
+    const decoded = decodeURIComponent(href)
+    expect(href.startsWith('mailto:jtaylor@digitalrealty.com?')).toBe(true)
+    expect(decoded).toContain('cc=asudra@digitalrealty.com')
+    expect(decoded).toContain('Cost saved check-in')
+    expect(decoded).toContain('Due Diligence Agent has been live for one month')
+    expect(decoded).toContain('https://tracker.example/agents/2')
   })
 })

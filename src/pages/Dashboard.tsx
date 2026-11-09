@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { AgentTitle } from '../components/AgentTitle'
+import { BoardLinks } from '../components/BoardLinks'
 import { CheckListSelect } from '../components/CheckListSelect'
 import { SavingsBreakdown } from '../components/SavingsBreakdown'
 import { SavingsCheckIns } from '../components/SavingsCheckIns'
@@ -126,6 +127,7 @@ export function DashboardPage() {
   return (
     <div className="space-y-6">
       <SavingsCheckIns agents={boardAgents} stages={stages} />
+      <BoardLinks />
       <SummaryStrip
         agents={boardAgents}
         stages={stages}

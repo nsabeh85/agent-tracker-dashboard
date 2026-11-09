@@ -35,6 +35,21 @@ export type Database = {
         }
         Relationships: []
       }
+      board_links: {
+        Row: {
+          link_key: string
+          url: string
+        }
+        Insert: {
+          link_key: string
+          url?: string
+        }
+        Update: {
+          link_key?: string
+          url?: string
+        }
+        Relationships: []
+      }
       agent_owners: {
         Row: {
           agent_id: string
