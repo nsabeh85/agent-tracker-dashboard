@@ -170,10 +170,12 @@ describe('production cost check-ins', () => {
       1,
       'https://tracker.example/agents/1',
     )
-    expect(href.startsWith('mailto:jtaylor@digitalrealty.com?')).toBe(true)
-    expect(href).toContain('cc=asudra%40digitalrealty.com')
-    expect(decodeURIComponent(href)).toContain('has been live for one month')
-    expect(decodeURIComponent(href)).toContain('https://tracker.example/agents/1')
+    const mailto = new URL(href).searchParams.get('mailtouri') ?? ''
+    expect(href.startsWith('https://outlook.office.com/mail/deeplink/compose?mailtouri=')).toBe(true)
+    expect(mailto.startsWith('mailto:jtaylor@digitalrealty.com?')).toBe(true)
+    expect(decodeURIComponent(mailto)).toContain('cc=asudra@digitalrealty.com')
+    expect(decodeURIComponent(mailto)).toContain('has been live for one month')
+    expect(decodeURIComponent(mailto)).toContain('https://tracker.example/agents/1')
   })
 
   it('puts every due agent in one email from the banner', () => {
@@ -189,8 +191,8 @@ describe('production cost check-ins', () => {
         boardUrl: 'https://tracker.example/agents/2',
       },
     ])
-    const decoded = decodeURIComponent(href)
-    expect(href.startsWith('mailto:jtaylor@digitalrealty.com?')).toBe(true)
+    const decoded = decodeURIComponent(new URL(href).searchParams.get('mailtouri') ?? '')
+    expect(href.startsWith('https://outlook.office.com/mail/deeplink/compose?mailtouri=')).toBe(true)
     expect(decoded).toContain('cc=asudra@digitalrealty.com')
     expect(decoded).toContain('Cost saved check-in')
     expect(decoded).toContain('Due Diligence Agent has been live for one month')
