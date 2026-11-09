@@ -35,21 +35,6 @@ export type Database = {
         }
         Relationships: []
       }
-      board_links: {
-        Row: {
-          link_key: string
-          url: string
-        }
-        Insert: {
-          link_key: string
-          url?: string
-        }
-        Update: {
-          link_key?: string
-          url?: string
-        }
-        Relationships: []
-      }
       agent_owners: {
         Row: {
           agent_id: string
@@ -224,6 +209,8 @@ export type Database = {
           priority: AgentPriority
           requester_department: string
           requester_name: string
+          approval_package_url: string | null
+          confluence_url: string | null
           copilot_studio_url: string | null
           savings_amount: number | null
           savings_cadence: SavingsCadence
@@ -244,6 +231,8 @@ export type Database = {
           priority?: AgentPriority
           requester_department: string
           requester_name: string
+          approval_package_url?: string | null
+          confluence_url?: string | null
           copilot_studio_url?: string | null
           savings_amount?: number | null
           savings_cadence?: SavingsCadence
@@ -264,6 +253,8 @@ export type Database = {
           priority?: AgentPriority
           requester_department?: string
           requester_name?: string
+          approval_package_url?: string | null
+          confluence_url?: string | null
           copilot_studio_url?: string | null
           savings_amount?: number | null
           savings_cadence?: SavingsCadence

@@ -52,6 +52,8 @@ function agent({
     savings_amount: amount,
     savings_cadence: cadence,
     went_live_on: liveStart,
+    approval_package_url: null,
+    confluence_url: null,
     copilot_studio_url: null,
     agent_owners: [],
     agent_stages: liveStart

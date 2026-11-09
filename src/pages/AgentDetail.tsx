@@ -5,6 +5,7 @@ import { ProgressBar } from '../components/ProgressBar'
 import { ScheduleMarker } from '../components/ScheduleMarker'
 import { CheckIcon } from '../components/StageIcon'
 import { OwnerMultiSelect } from '../components/OwnerMultiSelect'
+import { AgentResourceLinks } from '../components/AgentResourceLinks'
 import { CopyTrackingLink } from '../components/CopyTrackingLink'
 import { PublicAgentByIdPage } from './PublicTrack'
 import { DateInput } from '../components/DateInput'
@@ -254,6 +255,12 @@ export function AgentDetailPage() {
           <CopyTrackingLink token={agent.public_token} />
         </>
       ) : null}
+      <AgentResourceLinks
+        key={`${agent.approval_package_url ?? ''}|${agent.confluence_url ?? ''}`}
+        agent={agent}
+        canEdit={Boolean(admin)}
+        onSaved={reload}
+      />
 
       <section className="space-y-3">
         <h3 className="text-ink-400 px-1 text-xs font-bold tracking-[0.12em] uppercase">
