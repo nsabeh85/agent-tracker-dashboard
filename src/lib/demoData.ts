@@ -162,6 +162,8 @@ export const demoAgents: AgentWithStages[] = JIRA_INTAKE.map((row, index) => {
     target_go_live: null,
     assigned_to: assignedTo,
     status: 'pending_approval',
+    approval_package_url: null,
+    confluence_url: null,
     copilot_studio_url: null,
     savings_amount: null,
     savings_cadence: 'yearly',

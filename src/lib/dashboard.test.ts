@@ -46,6 +46,8 @@ function agent({
     savings_amount: null,
     savings_cadence: 'yearly',
     went_live_on: stageId === 'live' ? stageStarted : null,
+    approval_package_url: null,
+    confluence_url: null,
     copilot_studio_url: null,
     created_at: createdAt,
     updated_at: createdAt,

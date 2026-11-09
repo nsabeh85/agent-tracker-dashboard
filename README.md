@@ -49,10 +49,6 @@ earlier work remains incomplete.
 
 ### Portfolio view
 
-Administrators can paste and save an Approval Package link and a Confluence link on the board.
-Signed-in people open those saved addresses as hyperlinks. Apply
-`supabase/migrations/20261109000001_board_links.sql` before the first save.
-
 The dashboard filters for stage, owner, department, and status each accept more than one
 selection, including On hold. It can sort by target date, priority, or last update. Summary cards
 and savings totals respond to the active filters. Backlog requests stay hidden until that status
@@ -67,6 +63,7 @@ An agent record includes:
 - one or more owners and per-stage owners;
 - target go-live date, the date the agent went live, and source request link;
 - Copilot Studio link;
+- an Approval Package link and a Confluence link saved on that agent;
 - stage and sub-step progress;
 - threaded comments with author-aware edit and delete rules;
 - monthly or yearly savings estimate; and

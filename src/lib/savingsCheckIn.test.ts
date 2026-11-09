@@ -36,6 +36,8 @@ function agent(overrides: Partial<AgentWithStages> = {}): AgentWithStages {
     savings_amount: null,
     savings_cadence: 'yearly',
     went_live_on: '2026-01-01',
+    approval_package_url: null,
+    confluence_url: null,
     copilot_studio_url: null,
     agent_owners: [],
     agent_stages: [
