@@ -38,8 +38,13 @@ export function canUpdateLiveSavings(email: string | null | undefined): boolean 
   return normalized != null && SAVINGS_EDITOR_EMAILS.includes(normalized)
 }
 
-type CheckInAgent = Pick<Agent, 'status' | 'current_stage_id' | 'went_live_on'> & {
+type CheckInAgent = Pick<Agent, 'status' | 'current_stage_id' | 'went_live_on' | 'savings_amount'> & {
   agent_stages: Array<Pick<AgentStage, 'stage_id' | 'actual_start' | 'actual_end'>>
+}
+
+/** A saved amount, including zero, means a cost has been entered. */
+export function hasEnteredCost(amount: number | null | undefined): boolean {
+  return amount != null
 }
 
 function daysInMonth(year: number, monthIndex: number): number {
@@ -85,14 +90,18 @@ export function tenureLabel(months: number): string | null {
   return yearPart ?? monthPart
 }
 
-/** Latest monthly anniversary already reached, or null before the first one. */
+/**
+ * Tenure to show on the dashboard notice, or null when the agent should not appear.
+ * Only active Live agents with at least one completed month and no cost saved qualify.
+ */
 export function savingsReminderLabel(
   agent: CheckInAgent,
   stages: Stage[],
   today: Date = new Date(),
 ): string | null {
+  if (agent.status !== 'active') return null
   if (!isLiveAgent(agent, stages)) return null
-  if (agent.status === 'complete' || agent.status === 'cancelled') return null
+  if (hasEnteredCost(agent.savings_amount)) return null
   const months = completedLiveMonths(wentLiveISO(agent, agent.agent_stages, stages), today)
   return tenureLabel(months)
 }
@@ -134,46 +143,3 @@ export function savingsCheckInMessage(title: string, monthsLive: number, boardUr
   }
 }
 
-export type CostReminder = {
-  title: string
-  periodLabel: string
-  boardUrl: string
-}
-
-function reminderText(reminder: CostReminder): string {
-  return [
-    `${reminder.title} has been live for ${reminder.periodLabel}. How is it going, and what do you think you have saved by using this agent?`,
-    '',
-    'Update Cost saved on the board:',
-    reminder.boardUrl,
-  ].join('\n')
-}
-
-/** One finished Outlook message for every reminder on the banner, to Justin with Ajay copied. */
-export function savingsBannerMailto(reminders: CostReminder[]): string {
-  const subject =
-    reminders.length === 1
-      ? `${reminders[0].title} has been live for ${reminders[0].periodLabel}`
-      : 'Cost saved check-in'
-  const query = [
-    `cc=${encodeURIComponent(SAVINGS_SECONDARY_EMAIL)}`,
-    `subject=${encodeURIComponent(subject)}`,
-    `body=${encodeURIComponent(reminders.map(reminderText).join('\n\n'))}`,
-  ].join('&')
-  const mailto = `mailto:${SAVINGS_PRIMARY_EMAIL}?${query}`
-  return `https://outlook.office.com/mail/deeplink/compose?mailtouri=${encodeURIComponent(mailto)}`
-}
-
-/** Opens Outlook on the web to Justin, with Ajay copied. */
-export function savingsReminderMailto(
-  title: string,
-  periodLabel: string,
-  boardUrl: string,
-): string {
-  return savingsBannerMailto([{ title, periodLabel, boardUrl }])
-}
-
-export function savingsCheckInMailto(title: string, monthsLive: number, boardUrl: string): string {
-  const period = tenureLabel(monthsLive) ?? `${monthsLive} months`
-  return savingsReminderMailto(title, period, boardUrl)
-}
