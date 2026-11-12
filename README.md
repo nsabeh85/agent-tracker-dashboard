@@ -85,10 +85,9 @@ then “two months,” “three months,” “one year,” “one year and one m
 months,” and so on. Justin Taylor or Ajay Sudra can enter that cost on the agent page. Other
 editors can set an initial estimate when the agent is created, and cannot change it afterward.
 
-The cost banner has **Send**. It opens one Outlook on the web draft to Justin Taylor, with Ajay
-Sudra copied, covering every agent that is due. The subject is the dashboard name (PCT number and
-intake title) followed by `-cost`. After sign-in, Outlook opens that draft. The signed-in person
-sends it from that window.
+The cost banner is a notice only. It lists each active Live agent that has been live for at least
+one month and has no cost saved. Entering a cost removes that agent. The banner is hidden when
+no agents remain.
 
 The API can also send that message once a day from Lauren Lawhon's mailbox. That send uses the
 App Service managed identity, not a client secret, and it stays quiet until an Entra/Microsoft

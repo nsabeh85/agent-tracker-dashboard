@@ -1,11 +1,7 @@
 import { Link } from 'react-router-dom'
 import { AgentTitle } from './AgentTitle'
 import { presentedTitle } from '../lib/pctTitle'
-import {
-  savingsBannerMailto,
-  savingsDashboardAlert,
-  savingsReminderLabel,
-} from '../lib/savingsCheckIn'
+import { savingsDashboardAlert, savingsReminderLabel } from '../lib/savingsCheckIn'
 import type { AgentWithStages, Stage } from '../types/database'
 
 export function SavingsCheckIns({
@@ -24,31 +20,11 @@ export function SavingsCheckIns({
   })
   if (due.length === 0) return null
 
-  const outlookUrl = savingsBannerMailto(
-    due.map((item) => ({
-      title: item.label,
-      periodLabel: item.period,
-      boardUrl: `${window.location.origin}/agents/${item.id}`,
-    })),
-  )
-
   return (
     <section className="rounded-3xl border border-amber-200 bg-amber-50 px-5 py-4 dark:border-amber-500/30 dark:bg-amber-500/10">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold text-amber-900 dark:text-amber-200">
-          Cost check-in
-        </h2>
-        <a
-          href={outlookUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="rounded-full bg-amber-700 px-4 py-1.5 text-sm font-semibold text-white hover:bg-amber-800"
-        >
-          Send
-        </a>
-      </div>
+      <h2 className="text-sm font-semibold text-amber-900 dark:text-amber-200">Cost check-in</h2>
       <p className="mt-1 text-sm text-amber-800 dark:text-amber-100/80">
-        Send opens an Outlook draft to Justin Taylor, with Ajay Sudra copied. The subject is the agent name from the board, then -cost. Send it from that window.
+        These active agents have been live for at least a month and still need a cost saved.
       </p>
       <ul className="mt-3 space-y-2">
         {due.map((item) => {

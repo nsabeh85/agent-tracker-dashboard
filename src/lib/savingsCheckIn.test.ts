@@ -3,9 +3,8 @@ import {
   canUpdateLiveSavings,
   completedLiveMonths,
   dueSavingsCheckpoint,
+  hasEnteredCost,
   savingsCheckInMessage,
-  savingsBannerMailto,
-  savingsCheckInMailto,
   savingsDashboardAlert,
   savingsReminderLabel,
   tenureLabel,
@@ -62,10 +61,6 @@ function liveOn(iso: string): AgentWithStages {
   row.went_live_on = iso
   row.agent_stages = row.agent_stages.map((stage) => ({ ...stage, actual_start: iso }))
   return row
-}
-
-function outlookDraft(href: string): URL {
-  return new URL(href)
 }
 
 describe('production cost check-ins', () => {
@@ -129,7 +124,10 @@ describe('production cost check-ins', () => {
     expect(savingsReminderLabel(live, stages, new Date(2027, 9, 10))).toBe('one year')
     expect(savingsReminderLabel(live, stages, new Date(2027, 10, 10))).toBe('one year and one month')
     expect(savingsReminderLabel(agent({ status: 'complete' }), stages, new Date(2027, 0, 10))).toBeNull()
+    expect(savingsReminderLabel(agent({ status: 'on_hold' }), stages, new Date(2027, 0, 10))).toBeNull()
     expect(savingsReminderLabel(agent({ current_stage_id: 'build' }), stages, new Date(2027, 0, 10))).toBeNull()
+    expect(savingsReminderLabel(agent({ savings_amount: 1200 }), stages, new Date(2027, 0, 10))).toBeNull()
+    expect(savingsReminderLabel(agent({ savings_amount: 0 }), stages, new Date(2027, 0, 10))).toBeNull()
   })
 
   it('uses the recorded went-live date and ignores the target date', () => {
@@ -168,42 +166,10 @@ describe('production cost check-ins', () => {
     expect(message.text).toContain('https://tracker.example/agents/1')
   })
 
-  it('addresses the cost email to Justin and copies Ajay', () => {
-    const href = savingsCheckInMailto(
-      'Due Diligence Agent',
-      1,
-      'https://tracker.example/agents/1',
-    )
-    const draft = outlookDraft(href)
-    expect(href.startsWith('https://outlook.office.com/mail/deeplink/compose/?')).toBe(true)
-    expect(draft.searchParams.get('to')).toBe(
-      'jtaylor@digitalrealty.com?cc=asudra@digitalrealty.com',
-    )
-    expect(draft.searchParams.get('subject')).toBe('Due Diligence Agent-cost')
-    expect(draft.searchParams.get('body')).toContain('has been live for one month')
-    expect(draft.searchParams.get('body')).toContain('https://tracker.example/agents/1')
-  })
-
-  it('puts every due agent in one email from the banner', () => {
-    const href = savingsBannerMailto([
-      {
-        title: 'Due Diligence Agent',
-        periodLabel: 'one month',
-        boardUrl: 'https://tracker.example/agents/1',
-      },
-      {
-        title: 'PCT-49 Executive Request - Equinix Analyst Bot',
-        periodLabel: 'two months',
-        boardUrl: 'https://tracker.example/agents/2',
-      },
-    ])
-    const draft = outlookDraft(href)
-    expect(href.startsWith('https://outlook.office.com/mail/deeplink/compose/?')).toBe(true)
-    expect(draft.searchParams.get('to')).toContain('cc=asudra@digitalrealty.com')
-    expect(draft.searchParams.get('subject')).toBe(
-      'Due Diligence Agent-cost; PCT-49 Executive Request - Equinix Analyst Bot-cost',
-    )
-    expect(draft.searchParams.get('body')).toContain('Due Diligence Agent has been live for one month')
-    expect(draft.searchParams.get('body')).toContain('https://tracker.example/agents/2')
+  it('treats any saved amount, including zero, as a cost that has been entered', () => {
+    expect(hasEnteredCost(null)).toBe(false)
+    expect(hasEnteredCost(undefined)).toBe(false)
+    expect(hasEnteredCost(0)).toBe(true)
+    expect(hasEnteredCost(1500)).toBe(true)
   })
 })
