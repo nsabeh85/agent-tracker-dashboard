@@ -22,6 +22,7 @@ export function AgentResourceLinks({ agent, canEdit, onSaved }: Props) {
     confluence_url: agent.confluence_url ?? '',
   })
   const [saving, setSaving] = useState<FieldKey | null>(null)
+  const [editing, setEditing] = useState<FieldKey | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const saved = {
@@ -48,49 +49,79 @@ export function AgentResourceLinks({ agent, canEdit, onSaved }: Props) {
       return
     }
     setError(null)
+    setEditing(null)
     await onSaved()
   }
 
+  function cancel(key: FieldKey) {
+    setDrafts((current) => ({ ...current, [key]: saved[key] }))
+    setEditing(null)
+    setError(null)
+  }
+
   return (
-    <section className="border-ink-200/80 dark:border-ink-800 dark:bg-ink-900 space-y-3 rounded-2xl border bg-white p-4 shadow-sm">
-      {visible.map((field) => (
-        <div key={field.key} className="flex flex-wrap items-center gap-2">
-          {saved[field.key] ? (
-            <a
-              href={saved[field.key]}
-              target="_blank"
-              rel="noreferrer"
-              className="text-brand-700 dark:text-brand-300 text-sm font-semibold underline"
-            >
-              {field.label}
-            </a>
-          ) : (
-            <span className="text-ink-800 dark:text-ink-100 text-sm font-semibold">{field.label}</span>
-          )}
-          {canEdit ? (
-            <>
-              <input
-                type="url"
-                aria-label={field.label}
-                value={drafts[field.key]}
-                placeholder="https://"
-                onChange={(event) =>
-                  setDrafts((current) => ({ ...current, [field.key]: event.target.value }))
-                }
-                className="border-ink-200 text-ink-800 focus:border-brand-500 dark:border-ink-700 dark:bg-ink-950 dark:text-ink-100 min-w-64 flex-1 rounded-lg border px-2 py-1.5 text-sm outline-none"
-              />
-              <button
-                type="button"
-                disabled={saving === field.key}
-                onClick={() => void save(field.key)}
-                className="bg-brand-600 hover:bg-brand-700 rounded-full px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-60"
-              >
-                {saving === field.key ? 'Saving…' : 'Save'}
-              </button>
-            </>
-          ) : null}
-        </div>
-      ))}
+    <section className="border-ink-200/80 dark:border-ink-800 dark:bg-ink-900 space-y-4 rounded-2xl border bg-white p-4 shadow-sm">
+      {visible.map((field) => {
+        const url = saved[field.key]
+        const showEditor = canEdit && (!url || editing === field.key)
+        return (
+          <div key={field.key} className="space-y-3 not-first:border-ink-200/80 not-first:dark:border-ink-800 not-first:border-t not-first:pt-4">
+            <h3 className="text-ink-900 dark:text-ink-50 text-sm font-bold">{field.label}</h3>
+            {url && !showEditor ? (
+              <div className="flex flex-wrap gap-2">
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-brand-600 hover:bg-brand-700 rounded-full px-4 py-2 text-sm font-semibold text-white transition"
+                >
+                  Open
+                </a>
+                {canEdit ? (
+                  <button
+                    type="button"
+                    onClick={() => setEditing(field.key)}
+                    className="border-ink-200 text-ink-700 dark:border-ink-700 dark:bg-ink-950 dark:text-ink-200 rounded-full border px-4 py-2 text-sm font-semibold transition"
+                  >
+                    Change link
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+            {showEditor ? (
+              <div className="flex flex-wrap gap-2">
+                <input
+                  type="url"
+                  aria-label={field.label}
+                  value={drafts[field.key]}
+                  placeholder="https://"
+                  onChange={(event) =>
+                    setDrafts((current) => ({ ...current, [field.key]: event.target.value }))
+                  }
+                  className="border-ink-200 text-ink-800 focus:border-brand-500 dark:border-ink-700 dark:bg-ink-950 dark:text-ink-100 min-w-64 flex-1 rounded-xl border px-3 py-2 text-sm outline-none"
+                />
+                <button
+                  type="button"
+                  disabled={saving === field.key}
+                  onClick={() => void save(field.key)}
+                  className="bg-brand-600 hover:bg-brand-700 rounded-full px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                >
+                  {saving === field.key ? 'Saving…' : 'Save'}
+                </button>
+                {url ? (
+                  <button
+                    type="button"
+                    onClick={() => cancel(field.key)}
+                    className="border-ink-200 text-ink-700 dark:border-ink-700 dark:bg-ink-950 dark:text-ink-200 rounded-full border px-4 py-2 text-sm font-semibold transition"
+                  >
+                    Cancel
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        )
+      })}
       {error ? <p className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}
     </section>
   )
