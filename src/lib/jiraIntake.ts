@@ -20,6 +20,7 @@ export const JIRA_INTAKE: JiraIntake[] = [
   { key: 'PCT-526', title: 'AI assistant project Switzerland', department: 'Operations', assignee: 'Unassigned', created: '2026-07-17', labels: [] },
   { key: 'PCT-520', title: 'PRAXO OPS - AI Operational Intelligence Layer for Data Center Operations', department: 'Operations', assignee: 'Justin Taylor', created: '2026-07-10', labels: [] },
   { key: 'PCT-510', title: 'Copilot Coworking - project management system', department: 'PMO', assignee: 'Justin Taylor', created: '2026-07-09', labels: [] },
+  { key: 'PCT-506', title: 'NDA review', department: 'Legal', assignee: 'Unassigned', created: '2026-07-08', labels: [] },
   { key: 'PCT-502', title: 'Whitespace Planning AI Agent (CAD Stencils)', department: 'Operations', assignee: 'Justin Taylor', created: '2026-07-06', labels: ['digital-worker'] },
   { key: 'PCT-499', title: 'SE Pre-Sales Intake Agent (AgentForce-Style)', department: 'Commercial', assignee: 'Justin Taylor', created: '2026-07-06', labels: ['intelligent-automation'] },
   { key: 'PCT-498', title: 'AI Assistant for global legal risk register', department: 'Legal', assignee: 'Justin Taylor', created: '2026-07-06', labels: ['digital-worker'] },
@@ -50,6 +51,7 @@ export const JIRA_INTAKE: JiraIntake[] = [
   { key: 'PCT-286', title: 'LLM-based operational dashboard querying (Phaedra)', department: 'Operations', assignee: 'Unassigned', created: '2026-06-21', labels: [] },
   { key: 'PCT-273', title: 'Service delivery communication automation (agentic customer notifications)', department: 'Operations', assignee: 'Unassigned', created: '2026-06-21', labels: [] },
   { key: 'PCT-249', title: 'Fund side-letter assistant', department: 'Legal', assignee: 'Unassigned', created: '2026-06-21', labels: [] },
+  { key: 'PCT-241', title: 'Pre-signing Intelligent Contract Review', department: 'Legal', assignee: 'Unassigned', created: '2026-06-21', labels: [] },
   { key: 'PCT-240', title: 'Vetted HR/Employment Q&A agent for HRBPs', department: 'People', assignee: 'Nabih Sabeh', created: '2026-06-21', labels: ['ai-enablement-literacy'] },
   { key: 'PCT-49', title: 'Executive Request - Equinix Analyst Bot', department: 'Executive', assignee: 'Nabih Sabeh', created: '2026-06-09', labels: [] },
 ]
@@ -74,6 +76,11 @@ const TITLE_ALIASES = new Map<string, string>([
   ['hr 17 recruiter notetaker', 'PCT-489'],
   ['hr 17 recruiter note taker', 'PCT-489'],
   ['recruiter note taker', 'PCT-489'],
+  ['legal 01 sign off sheet sos', 'PCT-241'],
+  ['legal 01 sign off sheet', 'PCT-241'],
+  ['sign off sheet sos', 'PCT-241'],
+  ['legal 52 nda review', 'PCT-506'],
+  ['legal 52 nda', 'PCT-506'],
 ])
 
 /** Match a stored title to the intake row when the words are the same. */

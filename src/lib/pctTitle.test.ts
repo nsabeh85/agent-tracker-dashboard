@@ -32,6 +32,16 @@ describe('PCT title links', () => {
     expect(titleParts('HR-17 Recruiter Notetaker')[0]).toEqual({ kind: 'pct', key: 'PCT-489' })
   })
 
+  it('shows the sign-off sheet as PCT-241', () => {
+    expect(presentedTitle('Legal-01 Sign-off Sheet (SOS)')).toBe(
+      'PCT-241 Pre-signing Intelligent Contract Review',
+    )
+  })
+
+  it('drops Legal 52 from the PCT-506 title', () => {
+    expect(presentedTitle('Legal 52, NDA review')).toBe('PCT-506 NDA review')
+  })
+
   it('leaves a request that is not on the CDO intake unchanged', () => {
     expect(titleParts('Visier Integration to Copilot')).toEqual([
       { kind: 'text', text: 'Visier Integration to Copilot' },

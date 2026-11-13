@@ -3,8 +3,8 @@ import { JIRA_INTAKE, ownerName } from './jiraIntake'
 
 describe('JIRA_INTAKE', () => {
   it('lists the PCT requests', () => {
-    expect(JIRA_INTAKE).toHaveLength(41)
-    expect(new Set(JIRA_INTAKE.map((row) => row.key)).size).toBe(41)
+    expect(JIRA_INTAKE).toHaveLength(43)
+    expect(new Set(JIRA_INTAKE.map((row) => row.key)).size).toBe(43)
   })
 
   it('normalizes short admin owner names to full names', () => {
