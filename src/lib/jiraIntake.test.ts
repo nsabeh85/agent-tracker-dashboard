@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { JIRA_INTAKE, ownerName } from './jiraIntake'
 
 describe('JIRA_INTAKE', () => {
-  it('lists forty PCT requests', () => {
-    expect(JIRA_INTAKE).toHaveLength(40)
-    expect(new Set(JIRA_INTAKE.map((row) => row.key)).size).toBe(40)
+  it('lists the PCT requests', () => {
+    expect(JIRA_INTAKE).toHaveLength(43)
+    expect(new Set(JIRA_INTAKE.map((row) => row.key)).size).toBe(43)
   })
 
   it('normalizes short admin owner names to full names', () => {
