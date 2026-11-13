@@ -15,7 +15,7 @@ export const JIRA_INTAKE: JiraIntake[] = [
   { key: 'PCT-563', title: 'Due Diligence Agent V2 (Copilot Studio)', department: 'Legal', assignee: 'Unassigned', created: '2026-08-10', labels: [] },
   { key: 'PCT-562', title: 'Due Diligence Agent - v1 (O365 Agent)', department: 'Legal', assignee: 'Unassigned', created: '2026-08-10', labels: [] },
   { key: 'PCT-559', title: 'HR Self Service Agent (Copilot Studio integrated w/ ServiceNow)', department: 'People', assignee: 'Unassigned', created: '2026-08-06', labels: [] },
-  { key: 'PCT-555', title: 'Business Request: AI-Powered Tax Document Translation Agent with OCR and Layout Preservation', department: 'Finance', assignee: 'Unassigned', created: '2026-08-04', labels: [] },
+  { key: 'PCT-555', title: 'AI-Powered Tax Document Translation Agent with OCR and Layout Preservation', department: 'Finance', assignee: 'Unassigned', created: '2026-08-04', labels: [] },
   { key: 'PCT-533', title: 'New Oracle Application within IDCS: POC - Copilot to Oracle HCM', department: 'People', assignee: 'Unassigned', created: '2026-07-24', labels: [] },
   { key: 'PCT-526', title: 'AI assistant project Switzerland', department: 'Operations', assignee: 'Unassigned', created: '2026-07-17', labels: [] },
   { key: 'PCT-520', title: 'PRAXO OPS - AI Operational Intelligence Layer for Data Center Operations', department: 'Operations', assignee: 'Justin Taylor', created: '2026-07-10', labels: [] },
@@ -24,6 +24,7 @@ export const JIRA_INTAKE: JiraIntake[] = [
   { key: 'PCT-499', title: 'SE Pre-Sales Intake Agent (AgentForce-Style)', department: 'Commercial', assignee: 'Justin Taylor', created: '2026-07-06', labels: ['intelligent-automation'] },
   { key: 'PCT-498', title: 'AI Assistant for global legal risk register', department: 'Legal', assignee: 'Justin Taylor', created: '2026-07-06', labels: ['digital-worker'] },
   { key: 'PCT-495', title: 'Agentic SharePoint Document Organisation and Migration: Tooling Evaluation (Power Automate / AI Hub and n8n)', department: 'IT', assignee: 'Tony Lorino', created: '2026-07-06', labels: ['tool-request'] },
+  { key: 'PCT-489', title: 'Recruiter - Notetaker', department: 'People', assignee: 'Lauren Lawhon', created: '2026-07-01', labels: ['digital-worker'] },
   { key: 'PCT-488', title: 'create a Health and Safety AI bot/avatar for a new HS Management system', department: 'EHS', assignee: 'Justin Taylor', created: '2026-07-01', labels: ['digital-worker'] },
   { key: 'PCT-487', title: 'HR Self Service Agentic Chat', department: 'People', assignee: 'Alejandro Figueroa', created: '2026-06-30', labels: ['digital-worker'] },
   { key: 'PCT-471', title: 'AI Agent to Evaluate Costs', department: 'Finance', assignee: 'Sean Harrison', created: '2026-06-25', labels: ['data-foundation', 'decision-intelligence'] },
@@ -68,11 +69,21 @@ export function intakeTitle(key: string): string | undefined {
   return INTAKE_BY_KEY.get(key.toUpperCase())?.title
 }
 
+/** Board titles that predate the CDO intake name, keyed by normalized words. */
+const TITLE_ALIASES = new Map<string, string>([
+  ['hr 17 recruiter notetaker', 'PCT-489'],
+  ['hr 17 recruiter note taker', 'PCT-489'],
+  ['recruiter note taker', 'PCT-489'],
+])
+
 /** Match a stored title to the intake row when the words are the same. */
 export function intakeByTitle(title: string): JiraIntake | undefined {
   const wanted = normalizedName(title)
   if (!wanted) return undefined
-  return JIRA_INTAKE.find((row) => normalizedName(row.title) === wanted)
+  const exact = JIRA_INTAKE.find((row) => normalizedName(row.title) === wanted)
+  if (exact) return exact
+  const alias = TITLE_ALIASES.get(wanted)
+  return alias ? INTAKE_BY_KEY.get(alias) : undefined
 }
 
 export function ownerName(assignee: string): string {

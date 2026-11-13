@@ -11,7 +11,7 @@ export type DashboardMetric = 'pending' | 'in_flight' | 'live' | 'behind' | 'on_
 export type DashboardSort = 'target' | 'priority' | 'updated'
 export type StatusFilter = 'board' | 'pending_approval' | 'active' | 'on_hold' | 'backlog'
 
-/** Backlog is reviewed-and-parked. The default board hides it. */
+/** Legacy single-select helper. The board list uses matchesBoardFilters. */
 export function isShownOnDashboard(
   status: AgentStatus,
   filter: StatusFilter,
@@ -27,7 +27,7 @@ export type BoardFilters = {
   statuses: AgentStatus[]
 }
 
-/** Empty selections mean every value. An empty status list still hides backlog. */
+/** Empty selections mean every value, including backlog. */
 export function matchesBoardFilters(agent: AgentWithStages, filters: BoardFilters): boolean {
   if (filters.stageIds.length > 0 && !filters.stageIds.includes(agent.current_stage_id)) {
     return false
@@ -44,7 +44,7 @@ export function matchesBoardFilters(agent: AgentWithStages, filters: BoardFilter
     if (!filters.owners.some((name) => assigned.includes(name))) return false
   }
   if (filters.statuses.length > 0) return filters.statuses.includes(agent.status)
-  return agent.status !== 'backlog'
+  return true
 }
 
 export type LeftBarTone = 'hold' | 'blocked' | 'overdue' | 'behind' | 'live' | 'default'

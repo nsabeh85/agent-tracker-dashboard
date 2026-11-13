@@ -148,8 +148,6 @@ export function nextStageAfter<T extends { stage: Stage }>(rows: T[], row: T): T
   return ordered[index + 1] ?? null
 }
 
-export const GO_LIVE_REQUIRED = 'Select a target go-live date.'
-
 export const GO_LIVE_BEFORE_TESTING =
   'Set a target go-live date before a request can enter Testing.'
 

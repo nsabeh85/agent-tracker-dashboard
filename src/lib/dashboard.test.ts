@@ -171,8 +171,14 @@ describe('dashboard backlog', () => {
 describe('dashboard multi-select filters', () => {
   const filters = { stageIds: [], owners: [], departments: [], statuses: [] as AgentStatus[] }
 
-  it('hides backlog until that status is selected', () => {
-    expect(matchesBoardFilters(agent({ id: 'parked', status: 'backlog' }), filters)).toBe(false)
+  it('includes backlog when no status is selected', () => {
+    expect(matchesBoardFilters(agent({ id: 'parked', status: 'backlog' }), filters)).toBe(true)
+    expect(
+      matchesBoardFilters(agent({ id: 'parked', status: 'backlog' }), {
+        ...filters,
+        statuses: ['active'],
+      }),
+    ).toBe(false)
     expect(
       matchesBoardFilters(agent({ id: 'parked', status: 'backlog' }), {
         ...filters,
